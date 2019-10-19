@@ -203,12 +203,15 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
 		beta = (intersection.y() - v1y - alpha * (v2y - v1y))
 			/ (v3y - v1y);
 
-		//if false then inside triangle
+		
 		
 	}
+	//if this if statement gets executed then you are inside the triangle
 	if (!(alpha < 0 || beta < 0 || (alpha + beta) > 1)) {
+		//calculate reflection etc
 		return Eigen::Vector3f(1, 0, 0);
 	}
+	//this gets executed when outside the triangle
   return Eigen::Vector3f(rand() / (float)RAND_MAX, rand() / (float)RAND_MAX,
                          rand() / (float)RAND_MAX);
 }
