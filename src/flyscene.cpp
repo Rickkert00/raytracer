@@ -115,10 +115,21 @@ void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
 
   // direction from camera center to click position
   Eigen::Vector3f dir = (screen_pos - flycamera.getCenter()).normalized();
+  Eigen::Vector3f origin = flycamera.getCenter();
   
   // position and orient the cylinder representing the ray
-  ray.setOriginOrientation(flycamera.getCenter(), dir);
 
+  //calculate intersection point with scene(first intersection found)
+  Eigen::Vector3f intersection = intersect(origin, screen_pos);
+  std::cout << intersection.x() <<" " << intersection.y() << " " << intersection.z() << std::endl;
+  //if intersection is the infinite vector, the ray intersects with no triangle
+  ray.setOriginOrientation(flycamera.getCenter(), dir);
+  if (intersection.x() < INT_MAX) {
+	  float height = (intersection - flycamera.getCenter()).size();
+	  std::cout << height << std::endl;
+	  ray.setSize(0.01, height);
+  }
+ 
   // place the camera representation (frustum) on current camera location, 
   camerarep.resetModelMatrix();
   camerarep.setModelMatrix(flycamera.getViewMatrix().inverse());
@@ -163,6 +174,109 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
                                    Eigen::Vector3f &dest) {
   // just some fake random color per pixel until you implement your ray tracing
   // remember to return your RGB values as floats in the range [0, 1]!!!
+	Eigen::Vector3f directionV = dest - origin;
+	float alpha;
+	float beta;
+	for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
+		Tucano::Face face = mesh.getFace(i);
+		Eigen::Vector3f facenormal = face.normal;
+		facenormal.normalize();
+		//float distance = pow((pow(directionV.x, 2) + pow(directionV.y, 2) + pow(directionV.z, 2)), 0.5);
+		Eigen::Vector4f homogeneous = mesh.getVertex(face.vertex_ids[1]);
+		float distance = facenormal.dot(Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w()));
+		float origin_normal = origin.dot(facenormal);
+		float direction_normal = directionV.dot(facenormal);
+
+		//check whether ray is parallel to plane
+		float t = 0;
+		if (direction_normal != 0) {
+			t = (distance - origin_normal) / direction_normal;
+		}
+		Eigen::Vector3f intersection = origin + t * directionV;
+
+		//check whether intersection is inside triangle
+		std::vector<Eigen::Vector3f> vectors;
+		for (int j = 0; j < 3; j++) {
+			Eigen::Vector4f homogeneous = mesh.getVertex(face.vertex_ids[j]);
+			Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
+			vectors.push_back(real);
+		}
+
+		float v1x = vectors[0][0];
+		float v1y = vectors[0][1];
+		float v2x = vectors[1][0];
+		float v2y = vectors[1][1];
+		float v3x = vectors[2][0];
+		float v3y = vectors[2][1];
+
+		alpha = (v1x * (v3y - v1y) + (intersection.y() - v1y) * (v3x - v1x) - (intersection.x() * (v3y - v1y)))
+			/ ((v2y - v1y) * (v3x - v1x) - (v2x - v1x) * (v3y - v1y));
+		beta = (intersection.y() - v1y - alpha * (v2y - v1y))
+			/ (v3y - v1y);
+
+		//if this if statement gets executed then you are inside the triangle
+		if (!(alpha < 0 || beta < 0 || (alpha + beta) > 1)) {
+			//calculate reflection etc
+			return Eigen::Vector3f(1, 0, 0);
+		}
+
+	}
+	
+	//this gets executed when outside the triangle
   return Eigen::Vector3f(rand() / (float)RAND_MAX, rand() / (float)RAND_MAX,
                          rand() / (float)RAND_MAX);
 }
+
+Eigen::Vector3f Flyscene::intersect(Eigen::Vector3f& origin, Eigen::Vector3f& dest)
+{
+	Eigen::Vector3f directionV = dest - origin;
+	float alpha;
+	float beta;
+	for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
+		Tucano::Face face = mesh.getFace(i);
+		Eigen::Vector3f facenormal = face.normal;
+		facenormal.normalize();
+		//float distance = pow((pow(directionV.x, 2) + pow(directionV.y, 2) + pow(directionV.z, 2)), 0.5);
+		Eigen::Vector4f homogeneous = mesh.getVertex(face.vertex_ids[1]);
+		float distance = facenormal.dot(Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w()));
+		float origin_normal = origin.dot(facenormal);
+		float direction_normal = directionV.dot(facenormal);
+
+		//check whether ray is parallel to plane
+		float t = 0;
+		if (direction_normal != 0) {
+			t = (distance - origin_normal) / direction_normal;
+		}
+		Eigen::Vector3f intersection = origin + t * directionV;
+		//check whether intersection is inside triangle
+		std::vector<Eigen::Vector3f> vectors;
+		for (int j = 0; j < 3; j++) {
+			Eigen::Vector4f homogeneous = mesh.getVertex(face.vertex_ids[j]);
+			Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
+			vectors.push_back(real);
+		}
+
+		float v1x = vectors[0][0];
+		float v1y = vectors[0][1];
+		float v2x = vectors[1][0];
+		float v2y = vectors[1][1];
+		float v3x = vectors[2][0];
+		float v3y = vectors[2][1];
+
+		alpha = (v1x * (v3y - v1y) + (intersection.y() - v1y) * (v3x - v1x) - (intersection.x() * (v3y - v1y)))
+			/ ((v2y - v1y) * (v3x - v1x) - (v2x - v1x) * (v3y - v1y));
+		beta = (intersection.y() - v1y - alpha * (v2y - v1y))
+			/ (v3y - v1y);
+
+		//if this if statement gets executed then you are inside the triangle
+		if (!(alpha < 0 || beta < 0 || (alpha + beta) > 1)) {
+			//return the intersection point inside the triangle
+			return intersection;
+		}
+	}
+	//if no intersection was found with no triangle at all, return point at infinity(draw infinite ray)
+	std::cout << "no intersection" << std::endl;
+	return Eigen::Vector3f(INT_MAX, INT_MAX, INT_MAX);
+		
+}
+
