@@ -70,7 +70,18 @@ public:
    */
   Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
 
-  Eigen::Vector3f intersect(Eigen::Vector3f& origin, Eigen::Vector3f& dest);
+  /**
+   * @brief calculate intersection point
+   * @param origin Ray origin
+   * @param dest Other point on the ray, usually screen coordinates
+   * @return intersection vector or origin if no intersection
+   */
+  Eigen::Vector3f intersection(Eigen::Vector3f& origin,
+	  Eigen::Vector3f& dest);
+
+  void barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors,
+	  float& alpha, float& beta);
+
 private:
   // A simple phong shader for rendering meshes
   Tucano::Effects::PhongMaterial phong;
