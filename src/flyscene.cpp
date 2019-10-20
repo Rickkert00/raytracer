@@ -1,5 +1,8 @@
 #include "flyscene.hpp"
 #include <GLFW/glfw3.h>
+#include <iostream>
+#include <string>
+#include <float.h>
 
 //value used to check 
 constexpr float minCheck = 1e-8;
@@ -118,23 +121,22 @@ void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   Eigen::Vector3f origin = flycamera.getCenter();
   
   // calculate intersection
-  Eigen::Vector3f origin = flycamera.getCenter();
   Eigen::Vector3f ray_intersect = intersection(origin, dir);
   
   // position and orient the cylinder representing the ray
-  ray.setOriginOrientation(flycamera.getCenter(), -ray_intersect.normalized());
+  //ray.setOriginOrientation(flycamera.getCenter(), -ray_intersect.normalized());
   //ray.setSize(0.01, ray_intersect.norm());
 
   //calculate intersection point with scene(first intersection found)
-  Eigen::Vector3f intersection = intersect(origin, screen_pos);
-  std::cout << intersection.x() <<" " << intersection.y() << " " << intersection.z() << std::endl;
+  Eigen::Vector3f intersectionv = intersection(origin, screen_pos);
+ 
   //if intersection is the infinite vector, the ray intersects with no triangle
   ray.setOriginOrientation(flycamera.getCenter(), dir);
-  if (intersection.x() < INT_MAX) {
-	  float height = (intersection - flycamera.getCenter()).size();
-	  std::cout << (intersection - flycamera.getCenter()) << std::endl;
+  if (intersectionv.x() < INT_MAX) {
+	  float height = (intersectionv - flycamera.getCenter()).norm();
+	  std::cout << "norm: " << (intersectionv - flycamera.getCenter()) << std::endl;
 	  std::cout << height << std::endl;
-	  ray.setSize(0.01, 1.8);
+	  ray.setSize(0.01, height);
   }
  
   // place the camera representation (frustum) on current camera location, 
@@ -190,8 +192,11 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
 	Eigen::Vector3f intersectionv;
+	std::vector<float> ts;
+	std::vector<Eigen::Vector3f> directions;
 	for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
 		Tucano::Face face = mesh.getFace(i);
+		std::cout << i << std::endl;
 		float alpha;
 		float beta;
 
@@ -199,7 +204,7 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 		Eigen::Vector3f facenormal = face.normal.normalized();
 		//float distance = pow((pow(directionV.x(), 2) + pow(directionV.y(), 2) + pow(directionV.z(), 2)), 0.5);
 		directionV.normalize();
-		Eigen::Vector4f homogeneous = mesh.getVertex(face.vertex_ids[0]);
+		Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[0]);
 		Eigen::Matrix4f matrix = Eigen::Matrix4f(mesh.getShapeModelMatrix().matrix());
 		//homogeneous = homogeneous.m * matrix;
 		Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
@@ -222,7 +227,7 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 		//check whether intersection is inside triangle
 		std::vector<Eigen::Vector3f> vectors;
 		for (int j = 0; j < 3; j++) {
-			Eigen::Vector4f homogeneous = mesh.getVertex(face.vertex_ids[j]);
+			Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[j]);
 			Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
 			vectors.push_back(real);
 		}
@@ -248,9 +253,20 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 		if (alpha >= 0 && beta >= 0 && (alpha + beta) <= 1) {
 			std::cout << "Found intersection at" << std::endl << intersectionv << std::endl;
 			std::cout << "distance: " << distance << " t: " << t << " alpha: " << alpha << " beta: " << beta << std::endl;
-
-			return intersectionv;
+			ts.push_back(t);
+			directions.push_back(directionV);
 		}
+	}
+	if (ts.size() == 0) {
+		return origin;
+	}
+	else {
+		//calc correct intersection point(closest to the camera)
+		float min = *std::min_element(ts.begin(), ts.end());
+		std::vector<float>::iterator indexit = std::find(ts.begin(), ts.end(), min);
+		float index = indexit - ts.begin();
+		Eigen::Vector3f direction = directions[index];
+		return origin + min * direction;
 	}
 	return origin;
 }
@@ -269,74 +285,5 @@ void Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vecto
 
 	alpha = (d11 * d20 - d01 * d21) / denom;
 	beta = (d00 * d21 - d01 * d20) / denom;
-}
-
-Eigen::Vector3f Flyscene::intersect(Eigen::Vector3f& origin, Eigen::Vector3f& dest)
-{
-	Eigen::Vector3f directionV = dest - origin;
-	float alpha;
-	float beta;
-	for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
-		Tucano::Face face = mesh.getFace(i);
-		Eigen::Vector3f facenormal = mesh.getShapeModelMatrix() * face.normal;
-		facenormal.normalize();
-		//float distance = pow((pow(directionV.x, 2) + pow(directionV.y, 2) + pow(directionV.z, 2)), 0.5);
-		Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[1]);
-		float distance = facenormal.dot(Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w()));
-		float origin_normal = origin.dot(facenormal);
-		float direction_normal = directionV.dot(facenormal);
-		std::cout << i << std::endl;
-		//check whether ray is parallel to plane
-		float t = 0;
-		if (direction_normal != 0) {
-			t = (distance - origin_normal) / direction_normal;
-		}
-		//only allow ts greater than 0
-		
-		Eigen::Vector3f intersection = origin + t * directionV;
-		//check whether intersection is inside triangle
-		std::vector<Eigen::Vector3f> vectors;
-		for (int j = 0; j < 3; j++) {
-			Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[j]);
-			Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
-			vectors.push_back(real);
-		}
-		//alternative method for barycentric coords
-		Eigen::Vector3f v0 = vectors[1] - vectors[0];
-		Eigen::Vector3f v1 = vectors[2] - vectors[0];
-		Eigen::Vector3f v2 = intersection - vectors[0];
-		float d00 = v0.dot(v0);
-		float d01 = v0.dot(v1);
-		float d11 = v1.dot(v1);
-		float d20 = v2.dot(v0);
-		float d21 = v2.dot(v1);
-		float denom = d00 * d11 - d01 * d01;
-		alpha = (d11 * d20 - d01 * d21) / denom;
-		beta = (d00 * d21 - d01 * d20) / denom;
-
-		/*float v1x = vectors[0][0];
-		float v1y = vectors[0][1];
-		float v2x = vectors[1][0];
-		float v2y = vectors[1][1];
-		float v3x = vectors[2][0];
-		float v3y = vectors[2][1];
-
-		alpha = (v1x * (v3y - v1y) + (intersection.y()- v1y) * (v3x - v1x) - (intersection.x() * (v3y - v1y)))
-			/ ((v2y - v1y) * (v3x - v1x) - (v2x - v1x) * (v3y - v1y));
-		beta = (intersection.y() - v1y - alpha * (v2y - v1y))
-			/ (v3y - v1y);*/
-
-		
-		//if this if statement gets executed then you are inside the triangle
-		if (!(alpha < 0 || beta < 0 || (alpha + beta) > 1)) {
-			//return the intersection point inside the triangle
-			std::cout << "inside" << std::endl;
-			return intersection;
-		}
-	}
-	//if no intersection was found with no triangle at all, return point at infinity(draw infinite ray)
-	std::cout << "no intersection" << std::endl;
-	return Eigen::Vector3f(INT_MAX, INT_MAX, INT_MAX);
-		
 }
 
