@@ -27,4 +27,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="phongshader.vert">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
+    <FxCompile Include="phongshader.frag">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
+  </ItemGroup>
 </Project>
