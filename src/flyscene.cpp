@@ -1,6 +1,9 @@
 #include "flyscene.hpp"
 #include <GLFW/glfw3.h>
 
+//value used to check 
+constexpr float minCheck = 1e-8;
+
 void Flyscene::initialize(int width, int height) {
   // initiliaze the Phong Shading effect for the Opengl Previewer
   phong.initialize();
@@ -11,8 +14,7 @@ void Flyscene::initialize(int width, int height) {
 
   // load the OBJ file and materials
   Tucano::MeshImporter::loadObjFile(mesh, materials,
-                                    "resources/models/dodgeColorTest.obj");
-
+                                    "resources/models/cube.obj");
 
   // normalize the model (scale to unit cube and center at origin)
   mesh.normalizeModelMatrix();
@@ -20,8 +22,6 @@ void Flyscene::initialize(int width, int height) {
   // pass all the materials to the Phong Shader
   for (int i = 0; i < materials.size(); ++i)
     phong.addMaterial(materials[i]);
-
-
 
   // set the color and size of the sphere to represent the light sources
   // same sphere is used for all sources
@@ -116,8 +116,13 @@ void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   // direction from camera center to click position
   Eigen::Vector3f dir = (screen_pos - flycamera.getCenter()).normalized();
   
+  // calculate intersection
+  Eigen::Vector3f origin = flycamera.getCenter();
+  Eigen::Vector3f ray_intersect = intersection(origin, dir);
+  
   // position and orient the cylinder representing the ray
-  ray.setOriginOrientation(flycamera.getCenter(), dir);
+  ray.setOriginOrientation(flycamera.getCenter(), -ray_intersect.normalized());
+  //ray.setSize(0.01, ray_intersect.norm());
 
   // place the camera representation (frustum) on current camera location, 
   camerarep.resetModelMatrix();
@@ -159,29 +164,47 @@ void Flyscene::raytraceScene(int width, int height) {
 }
 
 
-Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
-                                   Eigen::Vector3f &dest) {
-  // just some fake random color per pixel until you implement your ray tracing
-  // remember to return your RGB values as floats in the range [0, 1]!!!
-	Eigen::Vector3f directionV = dest - origin;
-	float alpha;
-	float beta;
+Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
+	Eigen::Vector3f& dest) {
+	
+	Eigen::Vector3f intersectionp = intersection(origin, dest);
+	if (intersectionp != origin) {
+		return Eigen::Vector3f(1, 0.5, 0);
+	}
+	return Eigen::Vector3f(0, 0, 0);
+}
+
+Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
+	Eigen::Vector3f& dest) {
+	Eigen::Vector3f intersectionv;
 	for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
 		Tucano::Face face = mesh.getFace(i);
-		Eigen::Vector3f facenormal = face.normal;
-		facenormal.normalize();
-		//float distance = pow((pow(directionV.x, 2) + pow(directionV.y, 2) + pow(directionV.z, 2)), 0.5);
-		Eigen::Vector4f homogeneous = mesh.getVertex(face.vertex_ids[1]);
+		float alpha;
+		float beta;
+
+		Eigen::Vector3f directionV = (dest - origin);
+		Eigen::Vector3f facenormal = face.normal.normalized();
+		//float distance = pow((pow(directionV.x(), 2) + pow(directionV.y(), 2) + pow(directionV.z(), 2)), 0.5);
+		directionV.normalize();
+		Eigen::Vector4f homogeneous = mesh.getVertex(face.vertex_ids[0]);
+		Eigen::Matrix4f matrix = Eigen::Matrix4f(mesh.getShapeModelMatrix().matrix());
+		//homogeneous = homogeneous.m * matrix;
+		Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
 		float distance = facenormal.dot(Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w()));
-		float origin_normal = origin.dot(facenormal);
+		float origin_normal = origin.dot(facenormal);		
 		float direction_normal = directionV.dot(facenormal);
 
 		//check whether ray is parallel to plane
-		float t = 0;
-		if (direction_normal != 0) {
-			t = (distance - origin_normal) / direction_normal;
+		if (fabs(direction_normal) < minCheck || distance == 0) {
+			continue;
 		}
-		Eigen::Vector3f intersection = origin + t * directionV;
+
+		float t = (distance - origin_normal) / direction_normal;
+		if (t <= 0) {
+			continue;
+		}
+
+		intersectionv = origin + t * directionV;
 
 		//check whether intersection is inside triangle
 		std::vector<Eigen::Vector3f> vectors;
@@ -198,20 +221,39 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f &origin,
 		float v3x = vectors[2][0];
 		float v3y = vectors[2][1];
 
-		alpha = (v1x * (v3y - v1y) + (intersection.y() - v1y) * (v3x - v1x) - (intersection.x() * (v3y - v1y)))
-			/ ((v2y - v1y) * (v3x - v1x) - (v2x - v1x) * (v3y - v1y));
-		beta = (intersection.y() - v1y - alpha * (v2y - v1y))
-			/ (v3y - v1y);
+		//std::cout << v1x << " " << v1y << " " << v2x << " " << v2y << " " << v3x << " " << v3y << std::endl;
 
+		//alpha = (v1x * (v3y - v1y) + (intersectionv.y() - v1y) * (v3x - v1x) - (intersectionv.x() * (v3y - v1y)))
+		//	/ ((v2y - v1y) * (v3x - v1x) - (v2x - v1x) * (v3y - v1y));
+		//beta = (intersectionv.y() - v1y - alpha * (v2y - v1y))
+		//	/ (v3y - v1y);
+
+		barycentric(intersectionv, vectors, alpha, beta);
 		
-		
+		//if true then inside triangle
+
+		if (alpha >= 0 && beta >= 0 && (alpha + beta) <= 1) {
+			std::cout << "Found intersection at" << std::endl << intersectionv << std::endl;
+			std::cout << "distance: " << distance << " t: " << t << " alpha: " << alpha << " beta: " << beta << std::endl;
+
+			return intersectionv;
+		}
 	}
-	//if this if statement gets executed then you are inside the triangle
-	if (!(alpha < 0 || beta < 0 || (alpha + beta) > 1)) {
-		//calculate reflection etc
-		return Eigen::Vector3f(1, 0, 0);
-	}
-	//this gets executed when outside the triangle
-  return Eigen::Vector3f(rand() / (float)RAND_MAX, rand() / (float)RAND_MAX,
-                         rand() / (float)RAND_MAX);
+	return origin;
+}
+
+void Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors, float &alpha, float &beta) {
+	Eigen::Vector3f v0 = vectors[1] - vectors[0];
+	Eigen::Vector3f v1 = vectors[2] - vectors[0];
+	Eigen::Vector3f v2 = p - vectors[0];
+
+	float d00 = v0.dot(v0);
+	float d01 = v0.dot(v1);
+	float d11 = v1.dot(v1);
+	float d20 = v2.dot(v0);
+	float d21 = v2.dot(v1);
+	float denom = d00 * d11 - d01 * d01;
+
+	alpha = (d11 * d20 - d01 * d21) / denom;
+	beta = (d00 * d21 - d01 * d20) / denom;
 }
