@@ -196,9 +196,14 @@ Eigen::Vector3f Flyscene::refraction(Eigen::Vector3f& view, Eigen::Vector3f& nor
 
 	float y = i / x;
 
-	float z = (1 - y) * y * (1 - cos * cos);
+	float z = 1 - y * y * (1 - cos * cos);
 
-	return z < 0 ? 0 : (y * view + (y * cos - sqrtf(z))) * norm;
+	if (z < 0) {
+		return Eigen::Vector3f(0.0, 0.0, 0.0);
+	}
+	else {
+		return ((y * index) + (y * cos - sqrtf(z))) * norm;
+	}
 
 
 }
