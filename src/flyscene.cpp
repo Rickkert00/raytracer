@@ -167,12 +167,25 @@ void Flyscene::raytraceScene(int width, int height) {
 Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
 	
-
-
 	Eigen::Vector3f intersectionp = intersection(origin, dest);
-	if (intersectionp != origin) {
+
+	bool isLit = false;
+
+	// Shoot rays from the hitpoint to all light sources. If there is at least one ray with no intersection, the hitpoint is lit.
+	for (int i = 0; i < lights.size(); ++i) {
+		Eigen::Vector3f shadowIntersection = intersection(intersectionp, lights[i]);
+		if (shadowIntersection == origin)
+		{
+			isLit == true;
+			break;
+		}
+	}
+
+	if (intersectionp != origin && isLit == true) {
+		// Shading should happen here
 		return Eigen::Vector3f(1, 0.5, 0);
 	}
+	// Point is in shadow or the eye can't see it
 	return Eigen::Vector3f(0, 0, 0); 
 }
 
@@ -215,8 +228,14 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
 	Eigen::Vector3f intersectionv;
 
+	// Create placeholders describing the closest intersection
 	float minDistance = INFINITY;
+
 	Tucano::Face closestFace;
+	Tucano::Face *closestFacePointer = &closestFace;
+	closestFacePointer == NULL;
+
+	Eigen::Vector3f closestIntersectionV;
 
 	for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
 		Tucano::Face face = mesh.getFace(i);
@@ -277,17 +296,26 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 			std::cout << "Found intersection at" << std::endl << intersectionv << std::endl;
 			std::cout << "distance: " << distance << " t: " << t << " alpha: " << alpha << " beta: " << beta << std::endl;
 
+			// Calculate the intersection vector and it's distance from origin
 			Eigen::Vector3f intersectionDistanceVector = intersectionv - origin;
-			float intesectionDistance = pow((pow(intersectionDistanceVector.x, 2), pow(intersectionDistanceVector.y, 2), pow(intersectionDistanceVector.z, 2)), 0.5);
+			float intesectionDistance = pow((pow(intersectionDistanceVector.x(), 2), pow(intersectionDistanceVector.y(), 2), pow(intersectionDistanceVector.z(), 2)), 0.5);
 
+			// Compare the intersection distance to minimum distance, if it's smaller, update the placeholder values
 			if (intesectionDistance < minDistance) {
 				closestFace = face;
 				minDistance = intesectionDistance; // update min distance 
+				closestIntersectionV = intersectionv;
 			}
-
-			return intersectionv;
 		}
 	}
+
+	// Return the closest intersection. if there is one.
+	if (closestFacePointer != NULL)
+	{
+		return closestIntersectionV;
+	}
+
+	
 	return origin;
 }
 
@@ -310,3 +338,4 @@ void Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vecto
 	alpha = (d11 * d20 - d01 * d21) / denom;
 	beta = (d00 * d21 - d01 * d20) / denom;
 }
+
