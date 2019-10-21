@@ -179,10 +179,30 @@ Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc) {
 
 
 }
+//Calculates the direction of the refraction when the ray is inside the object and outside.
+Eigen::Vector3f Flyscene::refraction(Eigen::Vector3f& view, Eigen::Vector3f& normal, float& index) {
+	
+	float cos = clamp(view.dot(normal), -1.0f, 1.0f);
+	float i = 1;
+	float x = index;
+	Eigen::Vector3f norm = normal;
+	if (cos < 0) {
+		cos = -cos;
+	}
+	else {
+		std::swap(i, x);
+		norm = -normal;
+	}
 
-Eigen::Vector3f Flyscene::refraction(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r) {
-	float cos = clamp(Inc.dot(Outc), -1, 1);
+	float y = i / x;
+
+	float z = (1 - y) * y * (1 - cos * cos);
+
+	return z < 0 ? 0 : (y * view + (y * cos - sqrtf(z))) * norm;
+
+
 }
+
 
 Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
