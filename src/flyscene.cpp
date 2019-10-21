@@ -167,6 +167,8 @@ void Flyscene::raytraceScene(int width, int height) {
 Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
 	
+
+
 	Eigen::Vector3f intersectionp = intersection(origin, dest);
 	if (intersectionp != origin) {
 		return Eigen::Vector3f(1, 0.5, 0);
@@ -212,6 +214,10 @@ Eigen::Vector3f Flyscene::refraction(Eigen::Vector3f& view, Eigen::Vector3f& nor
 Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
 	Eigen::Vector3f intersectionv;
+
+	float minDistance = INFINITY;
+	Tucano::Face closestFace;
+
 	for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
 		Tucano::Face face = mesh.getFace(i);
 		float alpha;
@@ -270,6 +276,14 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 		if (alpha >= 0 && beta >= 0 && (alpha + beta) <= 1) {
 			std::cout << "Found intersection at" << std::endl << intersectionv << std::endl;
 			std::cout << "distance: " << distance << " t: " << t << " alpha: " << alpha << " beta: " << beta << std::endl;
+
+			Eigen::Vector3f intersectionDistanceVector = intersectionv - origin;
+			float intesectionDistance = pow((pow(intersectionDistanceVector.x, 2), pow(intersectionDistanceVector.y, 2), pow(intersectionDistanceVector.z, 2)), 0.5);
+
+			if (intesectionDistance < minDistance) {
+				closestFace = face;
+				minDistance = intesectionDistance; // update min distance 
+			}
 
 			return intersectionv;
 		}
