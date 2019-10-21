@@ -74,13 +74,22 @@ public:
    * @brief calculate intersection point
    * @param origin Ray origin
    * @param dest Other point on the ray, usually screen coordinates
+   * @param normalv The vector that will be set to the normal of the corresponding face
    * @return intersection vector or origin if no intersection
    */
   Eigen::Vector3f intersection(Eigen::Vector3f& origin,
-	  Eigen::Vector3f& dest);
+	  Eigen::Vector3f& dest, Eigen::Vector3f& normalv);
 
   void barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors,
 	  float& alpha, float& beta);
+  /*
+  * @brief calculate reflection vector
+  * @param incoming Incoming ray direction
+  * @param normal Normal of surface to reflect on
+  * @return direction of reflection vector
+  */
+  Eigen::Vector3f reflect(Eigen::Vector3f& incoming,
+	  Eigen::Vector3f& normal);
 
 private:
   // A simple phong shader for rendering meshes
@@ -108,6 +117,8 @@ private:
   /// A very thin cylinder to draw a debug ray
   Tucano::Shapes::Cylinder ray = Tucano::Shapes::Cylinder(0.1, 1.0, 16, 64);
 
+  ///vector containing consecutive reflections
+  std::vector<Tucano::Shapes::Cylinder> reflections;
   // Scene meshes
   Tucano::Mesh mesh;
 

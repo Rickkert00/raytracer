@@ -81,6 +81,11 @@ void Flyscene::paintGL(void) {
   ray.render(flycamera, scene_light);
   camerarep.render(flycamera, scene_light);
 
+  //render reflections
+  for (int i = 0; i < reflections.size(); i++) {
+	  reflections[i].render(flycamera, scene_light);
+  }
+
   // render ray tracing light sources as yellow spheres
   for (int i = 0; i < lights.size(); ++i) {
     lightrep.resetModelMatrix();
@@ -119,24 +124,32 @@ void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   // direction from camera center to click position
   Eigen::Vector3f dir = (screen_pos - flycamera.getCenter()).normalized();
   Eigen::Vector3f origin = flycamera.getCenter();
-  
-  // calculate intersection
-  Eigen::Vector3f ray_intersect = intersection(origin, dir);
-  
-  // position and orient the cylinder representing the ray
-  //ray.setOriginOrientation(flycamera.getCenter(), -ray_intersect.normalized());
-  //ray.setSize(0.01, ray_intersect.norm());
 
-  //calculate intersection point with scene(first intersection found)
-  Eigen::Vector3f intersectionv = intersection(origin, screen_pos);
+  //calculate intersection point with scene(closest intersection found)
+  Eigen::Vector3f normalv;
+  Eigen::Vector3f intersectionv = intersection(origin, screen_pos, normalv);
  
   //if intersection is the infinite vector, the ray intersects with no triangle
   ray.setOriginOrientation(flycamera.getCenter(), dir);
-  if (intersectionv.x() < INT_MAX) {
+  if (intersectionv != origin) {
 	  float height = (intersectionv - flycamera.getCenter()).norm();
-	  std::cout << "norm: " << (intersectionv - flycamera.getCenter()) << std::endl;
-	  std::cout << height << std::endl;
 	  ray.setSize(0.01, height);
+  }
+
+  //calculate reflection ray and draw it
+  //reset reflections again
+  reflections.clear();
+  if (intersectionv != origin) {
+	  Eigen::Vector3f incoming = intersectionv - flycamera.getCenter();
+	  Eigen::Vector3f reflection = reflect(incoming, normalv);
+	  std::cout << "reflection: " << reflection << std::endl;
+	  Tucano::Shapes::Cylinder reflected = Tucano::Shapes::Cylinder(0.01, 1.0, 16, 64);
+	  reflected.resetModelMatrix();
+	  reflected.setOriginOrientation(intersectionv, reflection.normalized());
+	  reflected.setSize(0.01, 10);
+	  reflections.push_back(reflected);
+	  std::cout << reflections[0].getRadius() << std::endl;
+	  std::cout << reflections[0].getHeight() << std::endl;
   }
  
   // place the camera representation (frustum) on current camera location, 
@@ -181,8 +194,8 @@ void Flyscene::raytraceScene(int width, int height) {
 
 Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
-	
-	Eigen::Vector3f intersectionp = intersection(origin, dest);
+	Eigen::Vector3f normal;
+	Eigen::Vector3f intersectionp = intersection(origin, dest, normal);
 	if (intersectionp != origin) {
 		return Eigen::Vector3f(1, 0.5, 0);
 	}
@@ -190,10 +203,11 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 }
 
 Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
-	Eigen::Vector3f& dest) {
+	Eigen::Vector3f& dest, Eigen::Vector3f& normalv) {
 	Eigen::Vector3f intersectionv;
 	std::vector<float> ts;
 	std::vector<Eigen::Vector3f> directions;
+	std::vector<Eigen::Vector3f> normals;
 	for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
 		Tucano::Face face = mesh.getFace(i);
 		std::cout << i << std::endl;
@@ -255,6 +269,7 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 			std::cout << "distance: " << distance << " t: " << t << " alpha: " << alpha << " beta: " << beta << std::endl;
 			ts.push_back(t);
 			directions.push_back(directionV);
+			normals.push_back(facenormal);
 		}
 	}
 	if (ts.size() == 0) {
@@ -266,6 +281,7 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 		std::vector<float>::iterator indexit = std::find(ts.begin(), ts.end(), min);
 		float index = indexit - ts.begin();
 		Eigen::Vector3f direction = directions[index];
+		normalv = normals[index];
 		return origin + min * direction;
 	}
 	return origin;
@@ -285,5 +301,15 @@ void Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vecto
 
 	alpha = (d11 * d20 - d01 * d21) / denom;
 	beta = (d00 * d21 - d01 * d20) / denom;
+}
+
+Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f& incoming, Eigen::Vector3f& normal)
+{
+	std::cout << "incoming" << incoming << std::endl;
+	std::cout << "normal" << normal << std::endl;
+
+	normal.normalized();
+	Eigen::Vector3f reflection = incoming - 2 * (incoming.dot(normal) * normal);
+	return reflection;
 }
 
