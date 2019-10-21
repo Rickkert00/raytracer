@@ -171,7 +171,17 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 	if (intersectionp != origin) {
 		return Eigen::Vector3f(1, 0.5, 0);
 	}
-	return Eigen::Vector3f(0, 0, 0);
+	return Eigen::Vector3f(0, 0, 0); 
+}
+
+Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc) {
+	return Inc - (2 * Inc.dot(Outc) * Inc);
+
+
+}
+
+Eigen::Vector3f Flyscene::refraction(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r) {
+	float cos = clamp(Inc.dot(Outc), -1, 1);
 }
 
 Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
@@ -240,6 +250,10 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 		}
 	}
 	return origin;
+}
+
+float Flyscene::clamp(float x, float low, float high) {
+	return x < low ? low : x > high ? high : x;
 }
 
 void Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors, float &alpha, float &beta) {

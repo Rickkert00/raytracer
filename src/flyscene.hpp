@@ -82,6 +82,15 @@ public:
   void barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors,
 	  float& alpha, float& beta);
 
+  //Calculates the direction of the reflection of the ray.
+  Eigen::Vector3f reflect(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc);
+
+  //Calculates the direction of the refraction of the ray.
+  Eigen::Vector3f refraction(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r);
+
+  //Calculates if the number is in range, used to check if it's in the range of frustum. (Based on c++17 function)
+  float clamp(float x, float low, float high);
+
 private:
   // A simple phong shader for rendering meshes
   Tucano::Effects::PhongMaterial phong;

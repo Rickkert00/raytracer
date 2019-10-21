@@ -56,7 +56,6 @@ private:
     /// Specular coefficient
     Eigen::Vector3f ks = Eigen::Vector3f(1.0, 1.0, 1.0);
 
-	Eigen::Vector3f light_intensity = Eigen::Vector3f(1.0, 1.0, 1.0);
 
     /// Shininess    
     float shininess = 10;
@@ -167,7 +166,6 @@ public:
         phong_shader.setUniform("kd", kd);
         phong_shader.setUniform("ks", ks);
         phong_shader.setUniform("shininess", shininess);
-		phong_shader.setUniform("lightProperty", light_intensity);
 
         bool has_texture = mesh.hasAttribute("in_TexCoords") && !texture.isEmpty();
  
