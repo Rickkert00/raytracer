@@ -168,20 +168,9 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
 	
 	Eigen::Vector3f intersectionp = intersection(origin, dest);
+	Eigen::Vector3f shadowIntersection = intersection(intersectionp, lights.back());
 
-	bool isLit = false;
-
-	// Shoot rays from the hitpoint to all light sources. If there is at least one ray with no intersection, the hitpoint is lit.
-	for (int i = 0; i < lights.size(); ++i) {
-		Eigen::Vector3f shadowIntersection = intersection(intersectionp, lights[i]);
-		if (shadowIntersection == origin)
-		{
-			isLit == true;
-			break;
-		}
-	}
-
-	if (intersectionp != origin && isLit == true) {
+	if (intersectionp != origin && shadowIntersection == intersectionp) {
 		// Shading should happen here
 		return Eigen::Vector3f(1, 0.5, 0);
 	}
@@ -314,7 +303,6 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 	{
 		return closestIntersectionV;
 	}
-
 	
 	return origin;
 }
