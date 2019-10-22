@@ -166,25 +166,18 @@ void Flyscene::raytraceScene(int width, int height) {
 
 Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
-	
-	Eigen::Vector3f intersectionp = intersection(origin, dest);
-	Eigen::Vector3f shadowIntersection = intersection(intersectionp, lights.back());
+	Eigen::Vector3f intersectionp; 
 
-	if (intersectionp != origin && shadowIntersection == intersectionp) {
-		// Shading should happen here
-		return Eigen::Vector3f(1, 0.5, 0);
-	}
-	// Point is in shadow or the eye can't see it
-	return Eigen::Vector3f(0, 0, 0); 
+	//use your stuff
+
 }
 
-Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc) {
+Eigen::Vector3f Flyscene::reflectV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc) {
 	return Inc - (2 * Inc.dot(Outc) * Inc);
-
-
 }
+
 //Calculates the direction of the refraction when the ray is inside the object and outside.
-Eigen::Vector3f Flyscene::refraction(Eigen::Vector3f& view, Eigen::Vector3f& normal, float& index) {
+Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f& view, Eigen::Vector3f& normal, float& index) {
 	
 	float cos = clamp(view.dot(normal), -1.0f, 1.0f);
 	float i = 1;
@@ -213,8 +206,8 @@ Eigen::Vector3f Flyscene::refraction(Eigen::Vector3f& view, Eigen::Vector3f& nor
 }
 
 
-Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
-	Eigen::Vector3f& dest) {
+bool Flyscene::intersection(Eigen::Vector3f& origin,
+	Eigen::Vector3f& dest, Eigen::Vector3f& hit) {
 	Eigen::Vector3f intersectionv;
 
 	// Create placeholders describing the closest intersection
@@ -301,10 +294,11 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 	// Return the closest intersection. if there is one.
 	if (closestFacePointer != NULL)
 	{
-		return closestIntersectionV;
+		hit = closestIntersectionV;
+		return true;
 	}
 	
-	return origin;
+	return false;
 }
 
 float Flyscene::clamp(float x, float low, float high) {
@@ -325,5 +319,25 @@ void Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vecto
 
 	alpha = (d11 * d20 - d01 * d21) / denom;
 	beta = (d00 * d21 - d01 * d20) / denom;
+}
+
+Eigen::Vector3f Flyscene::shade(int level, int maxLevel, Eigen::Vector3f p, Tucano::Face face) {
+	return directColor(p, face) + reflectColor(level, p, face);
+}
+
+Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Tucano::Face face) {
+	Eigen::Vector3f normal = face.normal.normalized();
+	Eigen::Vector3f lightDirection = (flycamera.getViewMatrix() * -lights[0]).normalized();
+	//Eigen::Vector3f lightReflection = reflectV(lightDirection, normal);
+	Eigen::Vector3f kd = materials[face.material_id].getDiffuse();
+	Eigen::Vector3f lightIntensity = Eigen::Vector3f(1.0, 1.0, 1.0);
+	float diffuseDot = lightDirection.dot(normal);
+	float diffuse = (diffuseDot > 0.0) ? diffuseDot: 0.0;
+
+	return lightIntensity * kd * diffuseDot;
+}
+
+Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f p, Tucano::Face face) {
+
 }
 
