@@ -17,6 +17,8 @@
 #include <tucano/utils/mtlIO.hpp>
 #include <tucano/utils/objimporter.hpp>
 
+const int MAX_REFLECT = 3;
+
 class Flyscene {
 
 public:
@@ -70,26 +72,41 @@ public:
    */
   Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
 
+
+  struct inters_point {
+	  bool intersected;
+	  Eigen::Vector3f point;
+	  Tucano::Face face;
+  };
+
   /**
    * @brief calculate intersection point
    * @param origin Ray origin
    * @param dest Other point on the ray, usually screen coordinates
+   * @param normalv The vector that will be set to the normal of the corresponding face
    * @return intersection vector or origin if no intersection
    */
-  bool intersection(Eigen::Vector3f& origin,
-	  Eigen::Vector3f& dest, Eigen::Vector3f& hit);
+  Flyscene::inters_point intersection(Eigen::Vector3f origin,
+	  Eigen::Vector3f dest);
 
   void barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors,
 	  float& alpha, float& beta);
+  /*
+  * @brief calculate reflection vector
+  * @param incoming Incoming ray direction
+  * @param normal Normal of surface to reflect on
+  * @return direction of reflection vector
+  */
+  Eigen::Vector3f reflect(Eigen::Vector3f& incoming,
+	  Eigen::Vector3f& normal);
 
-  Eigen::Vector3f shade(int level, int maxLevel, Eigen::Vector3f p, Tucano::Face face);
+  Eigen::Vector3f shade(int level, int maxlevel, Eigen::Vector3f p,Eigen::Vector3f ray, Tucano::Face face);
 
   Eigen::Vector3f directColor(Eigen::Vector3f p, Tucano::Face face);
 
-  Eigen::Vector3f reflectColor(int level, Eigen::Vector3f p, Tucano::Face face);
+  Eigen::Vector3f reflectColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
 
-  //Calculates the direction of the reflection of the ray.
-  Eigen::Vector3f reflectV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc);
+
 
   //Calculates the direction of the refraction of the ray.
   Eigen::Vector3f refractionV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r);
@@ -123,9 +140,13 @@ private:
   /// A very thin cylinder to draw a debug ray
   Tucano::Shapes::Cylinder ray = Tucano::Shapes::Cylinder(0.1, 1.0, 16, 64);
 
+  ///vector containing consecutive reflections
+  std::vector<Tucano::Shapes::Cylinder> reflections;
+
   // Scene meshes
   Tucano::Mesh mesh;
 
+  
   /// MTL materials
   vector<Tucano::Material::Mtl> materials;
 };
