@@ -287,7 +287,7 @@ Eigen::Vector3f Flyscene::intersection(Eigen::Vector3f& origin,
 
 			// Calculate the intersection vector and it's distance from origin
 			Eigen::Vector3f intersectionDistanceVector = intersectionv - origin;
-			float intesectionDistance = pow((pow(intersectionDistanceVector.x(), 2), pow(intersectionDistanceVector.y(), 2), pow(intersectionDistanceVector.z(), 2)), 0.5);
+			float intesectionDistance = pow((pow(intersectionDistanceVector.x(), 2) + pow(intersectionDistanceVector.y(), 2) + pow(intersectionDistanceVector.z(), 2)), 0.5);
 
 			// Compare the intersection distance to minimum distance, if it's smaller, update the placeholder values
 			if (intesectionDistance < minDistance) {
