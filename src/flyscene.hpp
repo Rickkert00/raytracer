@@ -17,6 +17,8 @@
 #include <tucano/utils/mtlIO.hpp>
 #include <tucano/utils/objimporter.hpp>
 
+const int MAX_REFLECT = 3;
+
 class Flyscene {
 
 public:
@@ -84,8 +86,8 @@ public:
    * @param normalv The vector that will be set to the normal of the corresponding face
    * @return intersection vector or origin if no intersection
    */
-  Flyscene::inters_point intersection(Eigen::Vector3f& origin,
-	  Eigen::Vector3f& dest);
+  Flyscene::inters_point intersection(Eigen::Vector3f origin,
+	  Eigen::Vector3f dest);
 
   void barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors,
 	  float& alpha, float& beta);
@@ -97,6 +99,20 @@ public:
   */
   Eigen::Vector3f reflect(Eigen::Vector3f& incoming,
 	  Eigen::Vector3f& normal);
+
+  Eigen::Vector3f shade(int level, int maxlevel, Eigen::Vector3f p,Eigen::Vector3f ray, Tucano::Face face);
+
+  Eigen::Vector3f directColor(Eigen::Vector3f p, Tucano::Face face);
+
+  Eigen::Vector3f reflectColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
+
+
+
+  //Calculates the direction of the refraction of the ray.
+  Eigen::Vector3f refractionV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r);
+
+  //Calculates if the number is in range, used to check if it's in the range of frustum. (Based on c++17 function)
+  float clamp(float x, float low, float high);
 
 private:
   // A simple phong shader for rendering meshes
