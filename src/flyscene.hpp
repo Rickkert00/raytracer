@@ -70,6 +70,13 @@ public:
    */
   Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
 
+
+  struct inters_point {
+	  bool intersected;
+	  Eigen::Vector3f point;
+	  Tucano::Face face;
+  };
+
   /**
    * @brief calculate intersection point
    * @param origin Ray origin
@@ -77,8 +84,8 @@ public:
    * @param normalv The vector that will be set to the normal of the corresponding face
    * @return intersection vector or origin if no intersection
    */
-  Eigen::Vector3f intersection(Eigen::Vector3f& origin,
-	  Eigen::Vector3f& dest, Eigen::Vector3f& normalv);
+  Flyscene::inters_point intersection(Eigen::Vector3f& origin,
+	  Eigen::Vector3f& dest);
 
   void barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors,
 	  float& alpha, float& beta);
@@ -119,9 +126,11 @@ private:
 
   ///vector containing consecutive reflections
   std::vector<Tucano::Shapes::Cylinder> reflections;
+
   // Scene meshes
   Tucano::Mesh mesh;
 
+  
   /// MTL materials
   vector<Tucano::Material::Mtl> materials;
 };
