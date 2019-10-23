@@ -57,7 +57,6 @@ void Flyscene::initialize(int width, int height) {
   // }
 
 
-
 }
 
 void Flyscene::paintGL(void) {
@@ -199,9 +198,29 @@ void Flyscene::raytraceScene(int width, int height) {
 Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
 
+
 	inters_point intersectionstruc = intersection(origin, dest);
+
+	int raysReachLight = 0;
+	int totalRaysShot = 15;
+
+	// calculate shadow factor
+	for (int i = 0; i < totalRaysShot; i++)
+	{
+		float randX = (rand() % 16) / 100 - 0.075;
+		float randY = (rand() % 16) / 100 -0.075;
+
+		Eigen::Vector3f offset = Eigen::Vector3f(randX, randY, 0);
+		inters_point rayToLight = intersection(intersectionstruc.point, offset + lights.back());
+
+		if (!rayToLight.intersected)
+		{
+			raysReachLight++;
+		}
+	}
+
 	if (intersectionstruc.intersected == true) {
-		return shade(0, 10, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
+		return (raysReachLight / totalRaysShot) * shade(0, 10, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
 	}
 }
 
