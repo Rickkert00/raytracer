@@ -212,8 +212,9 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 		//The range will be hardcoded unless we find a way to get the radius of the light
 		float randX = (rand() % 16) / 100 - 0.075;
 		float randY = (rand() % 16) / 100 -0.075;
+		float randZ = (rand() % 16) / 100 - 0.075;
 
-		Eigen::Vector3f offset = Eigen::Vector3f(randX, randY, 0);
+		Eigen::Vector3f offset = Eigen::Vector3f(randX, randY, randZ);
 
 		//Shoot a ray from hit point to light center shifted by the offset vector
 		inters_point rayToLight = intersection(intersectionstruc.point, offset + lights.back());
