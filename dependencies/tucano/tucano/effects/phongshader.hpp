@@ -56,7 +56,6 @@ private:
     /// Specular coefficient
     Eigen::Vector3f ks = Eigen::Vector3f(1.0, 1.0, 1.0);
 
-
     /// Shininess    
     float shininess = 10;
 
