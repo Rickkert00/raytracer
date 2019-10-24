@@ -102,7 +102,7 @@ public:
 
   Eigen::Vector3f shade(int level, int maxlevel, Eigen::Vector3f p,Eigen::Vector3f ray, Tucano::Face face);
 
-  Eigen::Vector3f directColor(Eigen::Vector3f p, Tucano::Face face);
+  Eigen::Vector3f directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tucano::Face face);
 
   Eigen::Vector3f reflectColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
 
