@@ -6,7 +6,7 @@
 
 //value used to check 
 constexpr float minCheck = 1e-8;
-
+const Eigen::Vector4f backgroundColor = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
 void Flyscene::initialize(int width, int height) {
   // initiliaze the Phong Shading effect for the Opengl Previewer
   phong.initialize();
@@ -65,9 +65,9 @@ void Flyscene::paintGL(void) {
   // update the camera view matrix with the last mouse interactions
   flycamera.updateViewMatrix();
   Eigen::Vector4f viewport = flycamera.getViewport();
-
+  
   // clear the screen and set background color
-  glClearColor(0.9, 0.9, 0.9, 0.0);
+  glClearColor(backgroundColor.x(), backgroundColor.y(), backgroundColor.z(), backgroundColor.w());
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   // position the scene light at the last ray-tracing light source
@@ -201,8 +201,9 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 
 	inters_point intersectionstruc = intersection(origin, dest);
 	if (intersectionstruc.intersected == true) {
-		return shade(0, 10, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
+		return shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
 	}
+	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 }
 
 //Calculates the direction of the refraction when the ray is inside the object and outside.
@@ -245,7 +246,7 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 	std::vector<Tucano::Face> faces;
 	for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
 		Tucano::Face face = mesh.getFace(i);
-		std::cout << i << std::endl;
+		/*std::cout << i << std::endl;*/
 		float alpha;
 		float beta;
 
@@ -300,8 +301,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		//if true then inside triangle
 
 		if (alpha >= 0 && beta >= 0 && (alpha + beta) <= 1) {
-			std::cout << "Found intersection at" << std::endl << intersectionv << std::endl;
-			std::cout << "distance: " << distance << " t: " << t << " alpha: " << alpha << " beta: " << beta << std::endl;
+			/*std::cout << "Found intersection at" << std::endl << intersectionv << std::endl;
+			std::cout << "distance: " << distance << " t: " << t << " alpha: " << alpha << " beta: " << beta << std::endl;*/
 			ts.push_back(t);
 			normals.push_back(facenormal);
 			directions.push_back(directionV);
@@ -319,8 +320,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		//get material of corresponding face
 		Eigen::Vector3f direction = directions[index];
 		//get normalv
-		std::cout << "normal before struct: " << normals[index] << std::endl;
-		std::cout << "intersection point before struct: " << origin + min * direction << std::endl;
+		/*std::cout << "normal before struct: " << normals[index] << std::endl;
+		std::cout << "intersection point before struct: " << origin + min * direction << std::endl;*/
 		Eigen::Vector3f point = origin + min * direction;
 		Tucano::Face face = faces[index];
 		return Flyscene::inters_point{ true, point, face };
@@ -350,8 +351,8 @@ void Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vecto
 
 Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f& incoming, Eigen::Vector3f& normal)
 {
-	std::cout << "incoming" << incoming << std::endl;
-	std::cout << "normal" << normal << std::endl;
+	/*std::cout << "incoming" << incoming << std::endl;
+	std::cout << "normal" << normal << std::endl;*/
 
 	normal.normalized();
 	Eigen::Vector3f reflection = incoming - 2 * (incoming.dot(normal) * normal);
@@ -360,33 +361,52 @@ Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f& incoming, Eigen::Vector3f& no
 
 Eigen::Vector3f Flyscene::shade(int level,int maxlevel, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face) {
 	if (level <= maxlevel) {
-		return directColor(intersection, face) + reflectColor(level, intersection, ray, face);
+		return directColor(intersection,ray, face) + reflectColor(level, intersection, ray, face);
 	}
-	return directColor(intersection, face);
+	return directColor(intersection,ray, face);
 }
 
-Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Tucano::Face face) {
+Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tucano::Face face) {
+	//ambient term
+	Eigen::Vector3f lightIntensity = Eigen::Vector3f(1.0, 1.0, 1.0);
+	Eigen::Vector3f ka = materials[face.material_id].getAmbient();
+	Eigen::Vector3f ambient = lightIntensity.cwiseProduct(ka);
+	//diffuse term
 	Eigen::Vector3f normal = face.normal.normalized();
 	Eigen::Vector3f lightDirection = (flycamera.getViewMatrix() * -lights[0]).normalized();
 	Eigen::Vector3f kd = materials[face.material_id].getDiffuse();
-	Eigen::Vector3f lightIntensity = Eigen::Vector3f(1.0, 1.0, 1.0);
 	float diffuseDot = lightDirection.dot(normal);
-	float diffuse = (diffuseDot > 0.0) ? diffuseDot: 0.0;
+	float diffuseBounded = (diffuseDot > 0.0) ? diffuseDot : 0.0;
 
-	return kd.cwiseProduct(lightIntensity) * diffuseDot;
+	Eigen::Vector3f diffuse = lightIntensity.cwiseProduct(kd) * diffuseBounded;
+	//specular term
+	Eigen::Vector3f reflectV = reflect(ray, face.normal);
+	inters_point newIntersection = intersection(p, reflectV - p);
+	Eigen::Vector3f cameraV = flycamera.getCenter() - p;
+	float specularDot = (reflectV.normalized()).dot(cameraV.normalized());
+	Eigen::Vector3f ks = materials[face.material_id].getSpecular();
+	float shininess = materials[face.material_id].getShininess();
+	float specularBounded = (specularDot > 0.0) ? specularDot : 0.0;
+	Eigen::Vector3f specular = lightIntensity.cwiseProduct(ks) * pow(specularBounded, shininess);
+
+	return ambient + diffuse + specular;
 }
 
 Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP, Eigen::Vector3f ray, Tucano::Face face) {
 	Tucano::Material::Mtl current_material = materials[face.material_id];
 	Eigen::Vector3f specular = current_material.getSpecular();
-	//TODO calc specular 
+
 	Eigen::Vector3f reflectV = reflect(ray, face.normal);
 	inters_point newIntersection = intersection(intersectionP, reflectV - intersectionP);
-
-	//check if material is reflective
-	if (specular.x() != 0 && specular.y() != 0 && specular.z() != 0) {
-		Eigen::Vector3f recursionresult = specular.cwiseProduct(Flyscene::shade(MAX_REFLECT, ++level, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face));
+	//if reflection doesnt intersect then return background color
+	if (newIntersection.intersected == false) {
+		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 	}
-	return Eigen::Vector3f(0, 0, 0);
+	//check if material is reflective, if so then go calculate recursion
+	if (specular.x() != 0 || specular.y() != 0 || specular.z() != 0) {
+		return Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face);
+	}
+	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
+
 }
 
