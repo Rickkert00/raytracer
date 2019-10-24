@@ -106,8 +106,10 @@ public:
 
   Eigen::Vector3f reflectColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
 
-
-
+  float shadowRatio(Eigen::Vector3f intersectionP);
+  
+  //used for multithreading
+  void rayTrace(vector<vector<Eigen::Vector3f>>& pixel_data, int i, int j, Eigen::Vector3f origin, Eigen::Vector3f screen_coords);
   //Calculates the direction of the refraction of the ray.
   Eigen::Vector3f refractionV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r);
 

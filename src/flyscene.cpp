@@ -3,10 +3,14 @@
 #include <iostream>
 #include <string>
 #include <float.h>
+#include <thread>
+#include <future>
 
 //value used to check 
 constexpr float minCheck = 1e-8;
 const Eigen::Vector4f backgroundColor = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
+
+
 void Flyscene::initialize(int width, int height) {
   // initiliaze the Phong Shading effect for the Opengl Previewer
   phong.initialize();
@@ -115,6 +119,11 @@ void Flyscene::simulate(GLFWwindow *window) {
   flycamera.translate(dx, dy, dz);
 }
 
+void Flyscene::rayTrace(vector<vector<Eigen::Vector3f>>& pixel_data, int i, int j, Eigen::Vector3f origin, Eigen::Vector3f screen_coords) {
+	Flyscene scene = Flyscene();
+	pixel_data[i][j] = scene.traceRay(origin, screen_coords);
+}
+
 void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   ray.resetModelMatrix();
   // from pixel position to world coordinates
@@ -178,14 +187,21 @@ void Flyscene::raytraceScene(int width, int height) {
   // origin of the ray is always the camera center
   Eigen::Vector3f origin = flycamera.getCenter();
   Eigen::Vector3f screen_coords;
-
+  float current = 0;
   // for every pixel shoot a ray from the origin through the pixel coords
   for (int j = 0; j < image_size[1]; ++j) {
     for (int i = 0; i < image_size[0]; ++i) {
       // create a ray from the camera passing through the pixel (i,j)
       screen_coords = flycamera.screenToWorld(Eigen::Vector2f(i, j));
       // launch raytracing for the given ray and write result to pixel data
-      pixel_data[i][j] = traceRay(origin, screen_coords);
+	  current += 1;
+	  //Flyscene scene = Flyscene();
+	  //std::thread thr(&Flyscene::rayTrace, scene,std::ref(pixel_data), j, i, origin, screen_coords);
+	  std::future<Eigen::Vector3f> fut = std::async(launch::async, &Flyscene::traceRay, this,  std::ref(origin), std::ref(screen_coords));
+	  pixel_data[i][j] = fut.get();
+	  //thr.join();
+      //pixel_data[i][j] = traceRay(origin, screen_coords);
+	  std::cout << "Ray " << current << " of " << image_size[0] * image_size[1] << std::endl;
     }
   }
 
@@ -195,40 +211,16 @@ void Flyscene::raytraceScene(int width, int height) {
 }
 
 
+
 Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
 
 	inters_point intersectionstruc = intersection(origin, dest);
-
-	//Choose how many rays you want to shoot to light
-	int totalRaysShot = 15;
-	//Counter for how many rays reach the light
-	int raysReachLight = 0;
-
-	//Each iterations shoots a ray to light
-	for (int i = 0; i < totalRaysShot; i++)
-	{
-		//Create two random floats between -0.075 and 0.075
-		//The range will be hardcoded unless we find a way to get the radius of the light
-		float randX = (rand() % 16) / 100 - 0.075;
-		float randY = (rand() % 16) / 100 -0.075;
-		float randZ = (rand() % 16) / 100 - 0.075;
-
-		Eigen::Vector3f offset = Eigen::Vector3f(randX, randY, randZ);
-
-		//Shoot a ray from hit point to light center shifted by the offset vector
-		inters_point rayToLight = intersection(intersectionstruc.point, offset + lights.back());
-
-		//See if ray reaches light. Increment counter if it does
-		if (!rayToLight.intersected)
-		{
-			raysReachLight++;
-		}
-	}
-
+	//float shadowratio = shadowRatio(intersectionstruc.point);
+	
 	if (intersectionstruc.intersected == true) {
 		//Multiply the rgb value of the pixel by the shadow ratio
-		return (raysReachLight / totalRaysShot) * shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
+		return shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
 	}
 	//if miss then return background color
 	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
@@ -438,3 +430,31 @@ Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP,
 
 }
 
+float Flyscene::shadowRatio(Eigen::Vector3f intersectionP) {
+	//Choose how many rays you want to shoot to light
+	int totalRaysShot = 15;
+	//Counter for how many rays reach the light
+	int raysReachLight = 0;
+
+	//Each iterations shoots a ray to light
+	for (int i = 0; i < totalRaysShot; i++)
+	{
+		//Create two random floats between -0.075 and 0.075
+		//The range will be hardcoded unless we find a way to get the radius of the light
+		float randX = (rand() % 16) / 100 - 0.075;
+		float randY = (rand() % 16) / 100 - 0.075;
+		float randZ = (rand() % 16) / 100 - 0.075;
+
+		Eigen::Vector3f offset = Eigen::Vector3f(randX, randY, randZ);
+
+		//Shoot a ray from hit point to light center shifted by the offset vector
+		inters_point rayToLight = intersection(intersectionP, offset + lights.back());
+
+		//See if ray reaches light. Increment counter if it does
+		if (!rayToLight.intersected)
+		{
+			raysReachLight++;
+		}
+	}
+	return raysReachLight / totalRaysShot;
+}
