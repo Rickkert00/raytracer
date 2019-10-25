@@ -37,8 +37,7 @@ void Flyscene::initialize(int width, int height) {
   // create a first ray-tracing light source at some random position
   lights.push_back(Eigen::Vector3f(-1.0, 1.0, 1.0));
 
-  Tucano::Shapes::Box myBox = Tucano::Shapes::Box(1.0, 1.0, 1.0);
-  myBox.render(flycamera, scene_light);
+
 
   // scale the camera representation (frustum) for the ray debug
   camerarep.shapeMatrix()->scale(0.2);
@@ -83,12 +82,19 @@ void Flyscene::paintGL(void) {
   scene_light.viewMatrix()->translate(-lights.back());
 
   // render the scene using OpenGL and one light source
-  phong.render(mesh, flycamera, scene_light);
+  
+
+//phong.render(mesh, flycamera, scene_light);
 
   // render the ray and camera representation for ray debug
   ray.render(flycamera, scene_light);
   camerarep.render(flycamera, scene_light);
 
+
+
+  Tucano::Shapes::Box myBox = Tucano::Shapes::Box(0.5, 0.5, 1.0);
+  myBox.render(flycamera, scene_light);
+                  
   //render reflections
   for (int i = 0; i < reflections.size(); i++) {
 	  reflections[i].render(flycamera, scene_light);
