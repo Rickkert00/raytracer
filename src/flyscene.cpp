@@ -64,9 +64,6 @@ void Flyscene::initialize(int width, int height) {
 
 }
 
-
-
-
 void Flyscene::paintGL(void) {
 
   // update the camera view matrix with the last mouse interactions
@@ -455,24 +452,5 @@ Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP,
 	}
 	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 
-}
-
-class Structure {
-	Eigen::Vector3f vertice;
-	Tucano::Face faces;
-public:
-	std::vector<Eigen::Vector3f> subdivide(Tucano::Mesh mesh);
-};
-
-std::vector<Eigen::Vector3f> subdivide(Tucano::Mesh mesh) {
-	std::vector<Eigen::Vector3f> bb;
-	
-
-	for (int i = 0; i < mesh.getNumberOfVertices; i++) {
-		Eigen::Vector4f vertex = mesh.getVertex(i);
-		Eigen::Vector3f normal = mesh.getNormal(i);
-		
-		
-	}
 }
 
