@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <float.h>
+#include <Tucano/shapes/box.hpp>
 
 //value used to check 
 constexpr float minCheck = 1e-8;
@@ -11,6 +12,7 @@ void Flyscene::initialize(int width, int height) {
   // initiliaze the Phong Shading effect for the Opengl Previewer
   phong.initialize();
 
+ 
   // set the camera's projection matrix
   flycamera.setPerspectiveMatrix(60.0, width / (float)height, 0.1f, 100.0f);
   flycamera.setViewport(Eigen::Vector2f((float)width, (float)height));
@@ -31,8 +33,12 @@ void Flyscene::initialize(int width, int height) {
   lightrep.setColor(Eigen::Vector4f(1.0, 1.0, 0.0, 1.0));
   lightrep.setSize(0.15);
 
+
   // create a first ray-tracing light source at some random position
   lights.push_back(Eigen::Vector3f(-1.0, 1.0, 1.0));
+
+  Tucano::Shapes::Box myBox = Tucano::Shapes::Box(1.0, 1.0, 1.0);
+  myBox.render(flycamera, scene_light);
 
   // scale the camera representation (frustum) for the ray debug
   camerarep.shapeMatrix()->scale(0.2);
@@ -263,6 +269,10 @@ Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f& view, Eigen::Vector3f& no
 
 }
 
+//Tucano::Shapes::Box myBox = Tucano::Shapes::Box(1.0, 1.0, 1.0);
+//void renderBox(const Tucano::Camera& camera, const Tucano::Camera& light) {
+//	myBox.render(camera, light);
+//}
 
 Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 	Eigen::Vector3f dest) {

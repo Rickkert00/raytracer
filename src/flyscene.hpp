@@ -146,6 +146,7 @@ private:
   // Scene meshes
   Tucano::Mesh mesh;
 
+
   
   /// MTL materials
   vector<Tucano::Material::Mtl> materials;
