@@ -9,7 +9,10 @@
 //value used to check 
 constexpr float minCheck = 1e-8;
 const Eigen::Vector4f backgroundColor = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
+std::vector<std::future<Flyscene::raytrace_return>> pending_futures;
+vector<vector<Eigen::Vector3f>> pixel_data;
 
+std::mutex mu;
 
 void Flyscene::initialize(int width, int height) {
   // initiliaze the Phong Shading effect for the Opengl Previewer
@@ -25,6 +28,7 @@ void Flyscene::initialize(int width, int height) {
 
   // normalize the model (scale to unit cube and center at origin)
   mesh.normalizeModelMatrix();
+  shapeModelMatrix = mesh.getShapeModelMatrix();
 
   // pass all the materials to the Phong Shader
   for (int i = 0; i < materials.size(); ++i)
@@ -119,10 +123,10 @@ void Flyscene::simulate(GLFWwindow *window) {
   flycamera.translate(dx, dy, dz);
 }
 
-void Flyscene::rayTrace(vector<vector<Eigen::Vector3f>>& pixel_data, int i, int j, Eigen::Vector3f origin, Eigen::Vector3f screen_coords) {
-	Flyscene scene = Flyscene();
-	pixel_data[i][j] = scene.traceRay(origin, screen_coords);
-}
+//void Flyscene::rayTrace(int i, int j, Eigen::Vector3f &origin, Eigen::Vector3f &screen_coords) {
+//	Flyscene scene = Flyscene();
+//	pixel_data[i][j] = scene.traceRay(origin, screen_coords);
+//}
 
 void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   ray.resetModelMatrix();
@@ -179,7 +183,7 @@ void Flyscene::raytraceScene(int width, int height) {
   }
 
   // create 2d vector to hold pixel colors and resize to match image size
-  vector<vector<Eigen::Vector3f>> pixel_data;
+  //vector<vector<Eigen::Vector3f>> pixel_data;
   pixel_data.resize(image_size[1]);
   for (int i = 0; i < image_size[1]; ++i)
     pixel_data[i].resize(image_size[0]);
@@ -197,33 +201,56 @@ void Flyscene::raytraceScene(int width, int height) {
 	  current += 1;
 	  //Flyscene scene = Flyscene();
 	  //std::thread thr(&Flyscene::rayTrace, scene,std::ref(pixel_data), j, i, origin, screen_coords);
-	  std::future<Eigen::Vector3f> fut = std::async(launch::async, &Flyscene::traceRay, this,  std::ref(origin), std::ref(screen_coords));
-	  pixel_data[i][j] = fut.get();
+	  //just need to find way to store return value in right place in pixel data
+	  int column = j;
+	  int row = i;
+	  auto fut = std::async(launch::async, &Flyscene::traceRay,this , std::ref(origin),std::ref(screen_coords), row, column);
+	  pending_futures.push_back(std::move(fut));
+	  for (int k = 0; k < pending_futures.size(); k++) {
+		  if (pending_futures[k]._Is_ready()) {
+			 
+			  mu.lock();
+			  Flyscene::raytrace_return val = pending_futures[k].get();
+			  pixel_data[val.i][val.j] = val.color;
+			  //std::cout << val.color << std::endl;
+			  pending_futures.erase(pending_futures.begin() + k);
+			  mu.unlock();
+		  }
+		  else {
+			  break;
+		  }
+	  }
+	  //pixel_data[i][j] = fut.get();
 	  //thr.join();
-      //pixel_data[i][j] = traceRay(origin, screen_coords);
-	  std::cout << "Ray " << current << " of " << image_size[0] * image_size[1] << std::endl;
+      //pixel_data[j][i] = traceRay(origin, screen_coords);
+	  //std::cout << "Ray " << current << " of " << image_size[0] * image_size[1] << std::endl;
     }
   }
 
   // write the ray tracing result to a PPM image
+  pending_futures.clear();
   Tucano::ImageImporter::writePPMImage("result.ppm", pixel_data);
   std::cout << "ray tracing done! " << std::endl;
+  pixel_data.clear();
 }
 
 
 
-Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
-	Eigen::Vector3f& dest) {
+Flyscene::raytrace_return Flyscene::traceRay(Eigen::Vector3f& origin,
+	Eigen::Vector3f& dest, int i, int j) {
 
 	inters_point intersectionstruc = intersection(origin, dest);
 	//float shadowratio = shadowRatio(intersectionstruc.point);
 	
 	if (intersectionstruc.intersected == true) {
 		//Multiply the rgb value of the pixel by the shadow ratio
-		return shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
+		//Eigen::Vector3f shadeval = shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
+		//return Flyscene::raytrace_return{ i, j, shadeval };
+		return Flyscene::raytrace_return{ i,j,materials[intersectionstruc.face.material_id].getDiffuse() };
+		//return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 	}
 	//if miss then return background color
-	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
+	return Flyscene::raytrace_return{ i,j,Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z()) };
 }
 
 //Calculates the direction of the refraction when the ray is inside the object and outside.
@@ -274,16 +301,21 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		Eigen::Vector3f facenormal = face.normal.normalized();
 		//float distance = pow((pow(directionV.x(), 2) + pow(directionV.y(), 2) + pow(directionV.z(), 2)), 0.5);
 		directionV.normalize();
-		Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[0]);
-		Eigen::Matrix4f matrix = Eigen::Matrix4f(mesh.getShapeModelMatrix().matrix());
-		//homogeneous = homogeneous.m * matrix;
-		Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
-		float distance = facenormal.dot(Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w()));
+
+		std::vector<Eigen::Vector3f> vectors;
+		for (int j = 0; j < 3; j++) {
+			Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[j]);
+			Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
+			vectors.push_back(real);
+		}
+
+
+		float distance = facenormal.dot(vectors[0]);
 		float origin_normal = origin.dot(facenormal);
 		float direction_normal = directionV.dot(facenormal);
 
 		//check whether ray is parallel to plane
-		if (fabs(direction_normal) < minCheck || distance == 0) {
+		if (fabs(direction_normal) < minCheck) {
 			continue;
 		}
 
@@ -293,28 +325,6 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		}
 
 		intersectionv = origin + t * directionV;
-
-		//check whether intersection is inside triangle
-		std::vector<Eigen::Vector3f> vectors;
-		for (int j = 0; j < 3; j++) {
-			Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[j]);
-			Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
-			vectors.push_back(real);
-		}
-
-		float v1x = vectors[0][0];
-		float v1y = vectors[0][1];
-		float v2x = vectors[1][0];
-		float v2y = vectors[1][1];
-		float v3x = vectors[2][0];
-		float v3y = vectors[2][1];
-
-		//std::cout << v1x << " " << v1y << " " << v2x << " " << v2y << " " << v3x << " " << v3y << std::endl;
-
-		//alpha = (v1x * (v3y - v1y) + (intersectionv.y() - v1y) * (v3x - v1x) - (intersectionv.x() * (v3y - v1y)))
-		//	/ ((v2y - v1y) * (v3x - v1x) - (v2x - v1x) * (v3y - v1y));
-		//beta = (intersectionv.y() - v1y - alpha * (v2y - v1y))
-		//	/ (v3y - v1y);
 
 		barycentric(intersectionv, vectors, alpha, beta);
 
@@ -424,7 +434,7 @@ Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP,
 	}
 	//check if material is reflective, if so then go calculate recursion
 	if (specular.x() != 0 || specular.y() != 0 || specular.z() != 0) {
-		return Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face);
+		return specular.cwiseProduct(Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face));
 	}
 	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 

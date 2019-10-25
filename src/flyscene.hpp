@@ -64,13 +64,18 @@ public:
    */
   void raytraceScene(int width = 0, int height = 0);
 
+  struct raytrace_return {
+	  int i;
+	  int j;
+	  Eigen::Vector3f color;
+  };
   /**
    * @brief trace a single ray from the camera passing through dest
    * @param origin Ray origin
    * @param dest Other point on the ray, usually screen coordinates
    * @return a RGB color
    */
-  Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
+  Flyscene::raytrace_return traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest, int i, int j);
 
 
   struct inters_point {
@@ -78,6 +83,8 @@ public:
 	  Eigen::Vector3f point;
 	  Tucano::Face face;
   };
+
+ 
 
   /**
    * @brief calculate intersection point
@@ -109,7 +116,7 @@ public:
   float shadowRatio(Eigen::Vector3f intersectionP);
   
   //used for multithreading
-  void rayTrace(vector<vector<Eigen::Vector3f>>& pixel_data, int i, int j, Eigen::Vector3f origin, Eigen::Vector3f screen_coords);
+  void rayTrace(int i, int j, Eigen::Vector3f &origin, Eigen::Vector3f &screen_coords);
   //Calculates the direction of the refraction of the ray.
   Eigen::Vector3f refractionV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r);
 
@@ -148,6 +155,7 @@ private:
   // Scene meshes
   Tucano::Mesh mesh;
 
+  Eigen::Affine3f shapeModelMatrix;
   
   /// MTL materials
   vector<Tucano::Material::Mtl> materials;
