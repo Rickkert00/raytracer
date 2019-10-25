@@ -6,7 +6,6 @@
 #include <GL/glew.h>
 
 #include <GLFW/glfw3.h>
-
 #include <tucano/effects/phongmaterialshader.hpp>
 #include <tucano/mesh.hpp>
 #include <tucano/shapes/camerarep.hpp>
@@ -63,19 +62,13 @@ public:
    * @brief raytrace your scene from current camera position   
    */
   void raytraceScene(int width = 0, int height = 0);
-
-  struct raytrace_return {
-	  int i;
-	  int j;
-	  Eigen::Vector3f color;
-  };
   /**
    * @brief trace a single ray from the camera passing through dest
    * @param origin Ray origin
    * @param dest Other point on the ray, usually screen coordinates
    * @return a RGB color
    */
-  Flyscene::raytrace_return traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest, int i, int j);
+Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
 
 
   struct inters_point {
@@ -115,8 +108,6 @@ public:
 
   float shadowRatio(Eigen::Vector3f intersectionP);
   
-  //used for multithreading
-  void rayTrace(int i, int j, Eigen::Vector3f &origin, Eigen::Vector3f &screen_coords);
   //Calculates the direction of the refraction of the ray.
   Eigen::Vector3f refractionV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r);
 

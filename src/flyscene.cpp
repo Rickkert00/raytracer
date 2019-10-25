@@ -9,10 +9,7 @@
 //value used to check 
 constexpr float minCheck = 1e-8;
 const Eigen::Vector4f backgroundColor = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
-std::vector<std::future<Flyscene::raytrace_return>> pending_futures;
 vector<vector<Eigen::Vector3f>> pixel_data;
-
-std::mutex mu;
 
 void Flyscene::initialize(int width, int height) {
   // initiliaze the Phong Shading effect for the Opengl Previewer
@@ -123,11 +120,6 @@ void Flyscene::simulate(GLFWwindow *window) {
   flycamera.translate(dx, dy, dz);
 }
 
-//void Flyscene::rayTrace(int i, int j, Eigen::Vector3f &origin, Eigen::Vector3f &screen_coords) {
-//	Flyscene scene = Flyscene();
-//	pixel_data[i][j] = scene.traceRay(origin, screen_coords);
-//}
-
 void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
   ray.resetModelMatrix();
   // from pixel position to world coordinates
@@ -185,72 +177,58 @@ void Flyscene::raytraceScene(int width, int height) {
   // create 2d vector to hold pixel colors and resize to match image size
   //vector<vector<Eigen::Vector3f>> pixel_data;
   pixel_data.resize(image_size[1]);
-  for (int i = 0; i < image_size[1]; ++i)
-    pixel_data[i].resize(image_size[0]);
-
+  for (int i = 0; i < image_size[1]; ++i) {
+	  pixel_data[i].resize(image_size[0]);
+  }
   // origin of the ray is always the camera center
   Eigen::Vector3f origin = flycamera.getCenter();
   Eigen::Vector3f screen_coords;
-  float current = 0;
-  // for every pixel shoot a ray from the origin through the pixel coords
-  for (int j = 0; j < image_size[1]; ++j) {
-    for (int i = 0; i < image_size[0]; ++i) {
-      // create a ray from the camera passing through the pixel (i,j)
-      screen_coords = flycamera.screenToWorld(Eigen::Vector2f(i, j));
-      // launch raytracing for the given ray and write result to pixel data
-	  current += 1;
-	  //Flyscene scene = Flyscene();
-	  //std::thread thr(&Flyscene::rayTrace, scene,std::ref(pixel_data), j, i, origin, screen_coords);
-	  //just need to find way to store return value in right place in pixel data
-	  int column = j;
-	  int row = i;
-	  auto fut = std::async(launch::async, &Flyscene::traceRay,this , std::ref(origin),std::ref(screen_coords), row, column);
-	  pending_futures.push_back(std::move(fut));
-	  for (int k = 0; k < pending_futures.size(); k++) {
-		  if (pending_futures[k]._Is_ready()) {
-			 
-			  mu.lock();
-			  Flyscene::raytrace_return val = pending_futures[k].get();
-			  pixel_data[val.i][val.j] = val.color;
-			  //std::cout << val.color << std::endl;
-			  pending_futures.erase(pending_futures.begin() + k);
-			  mu.unlock();
-		  }
-		  else {
-			  break;
-		  }
-	  }
-	  //pixel_data[i][j] = fut.get();
-	  //thr.join();
-      //pixel_data[j][i] = traceRay(origin, screen_coords);
-	  //std::cout << "Ray " << current << " of " << image_size[0] * image_size[1] << std::endl;
-    }
-  }
 
+  //code credit goes to https://medium.com/@phostershop/solving-multithreaded-raytracing-issues-with-c-11-7f018ecd76fa
+  std::size_t max = double(image_size[0]) * double(image_size[1]);
+  std::size_t cores = std::thread::hardware_concurrency();
+  volatile std::atomic<std::size_t> count(0);
+  std::vector<std::future<void>> future_vector;
+  for (std::size_t i(0); i < cores; ++i) {
+	  future_vector.emplace_back(std::async([=, &origin]()
+		  {
+			  for (std::size_t index(i); index < max; index += cores)
+			  {
+				  std::size_t x = index % image_size[0];
+				  std::size_t y = index / image_size[0];
+				  Eigen::Vector3f screen_coords = flycamera.screenToWorld(Eigen::Vector2f(x, y));
+				  pixel_data[index % image_size[1]][index / image_size[1]] = traceRay(origin, screen_coords);
+			  }
+		  }));
+  }
+  //wait for threads to finish
+    for (int i = 0; i < future_vector.size(); ++i) {
+	  if (!(future_vector[i]._Is_ready())) {
+		  i = -1;
+		  std::this_thread::sleep_for(std::chrono::seconds(1));
+	  }
+  }
   // write the ray tracing result to a PPM image
-  pending_futures.clear();
   Tucano::ImageImporter::writePPMImage("result.ppm", pixel_data);
+  
   std::cout << "ray tracing done! " << std::endl;
   pixel_data.clear();
 }
 
 
 
-Flyscene::raytrace_return Flyscene::traceRay(Eigen::Vector3f& origin,
-	Eigen::Vector3f& dest, int i, int j) {
+Eigen::Vector3f  Flyscene::traceRay(Eigen::Vector3f& origin,
+	Eigen::Vector3f& dest) {
 
 	inters_point intersectionstruc = intersection(origin, dest);
 	//float shadowratio = shadowRatio(intersectionstruc.point);
 	
 	if (intersectionstruc.intersected == true) {
 		//Multiply the rgb value of the pixel by the shadow ratio
-		//Eigen::Vector3f shadeval = shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
-		//return Flyscene::raytrace_return{ i, j, shadeval };
-		return Flyscene::raytrace_return{ i,j,materials[intersectionstruc.face.material_id].getDiffuse() };
-		//return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
+		return shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
 	}
 	//if miss then return background color
-	return Flyscene::raytrace_return{ i,j,Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z()) };
+	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 }
 
 //Calculates the direction of the refraction when the ray is inside the object and outside.
@@ -390,9 +368,9 @@ Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f& incoming, Eigen::Vector3f& no
 }
 
 Eigen::Vector3f Flyscene::shade(int level,int maxlevel, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face) {
-	if (level <= maxlevel) {
+	/*if (level <= maxlevel) {
 		return directColor(intersection,ray, face) + reflectColor(level, intersection, ray, face);
-	}
+	}*/
 	return directColor(intersection,ray, face);
 }
 
