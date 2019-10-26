@@ -397,6 +397,11 @@ Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tu
 	float specularBounded = (specularDot > 0.0) ? specularDot : 0.0;
 	Eigen::Vector3f specular = lightIntensity.cwiseProduct(ks) * pow(specularBounded, shininess);
 
+	std::cout << "ambient: " << ambient << std::endl;
+	std::cout << "diffuse: " << diffuse << std::endl;
+	std::cout << "specular: " << specular << std::endl;
+
+
 	return ambient + diffuse + specular;
 }
 
