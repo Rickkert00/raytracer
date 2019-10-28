@@ -90,16 +90,11 @@ void Flyscene::paintGL(void) {
   // render the scene using OpenGL and one light source
   
 
-//phong.render(mesh, flycamera, scene_light);
+	phong.render(mesh, flycamera, scene_light);
 
   // render the ray and camera representation for ray debug
   ray.render(flycamera, scene_light);
   camerarep.render(flycamera, scene_light);
-
-
-
-  Tucano::Shapes::Box myBox = Tucano::Shapes::Box(0.5, 0.5, 1.0);
-  myBox.render(flycamera, scene_light);
                   
   //render reflections
   for (int i = 0; i < reflections.size(); i++) {
@@ -298,6 +293,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		std::vector<Tucano::Face> box = bboxes[i];
 		std::vector<float> myCoords = makePlanes(box);
 		std::vector<float> intersPoints;
+		
+		cout << "AICI " << myCoords[0] << " " << myCoords[1] << " " << myCoords[2] << " " << myCoords[3] << " " << myCoords[4] << " " << myCoords[5] <<endl;
 
 		Eigen::Vector3f d = dest - origin;
 		float txmin = (myCoords[0] - origin.x()) / d.x();
@@ -420,6 +417,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 				return Flyscene::inters_point{ true, point, face };
 			}
 		}
+		else
+			return Flyscene::inters_point{ false, Eigen::Vector3f(), Tucano::Face() };
 
 	}
 	//Eigen::Vector3f intersectionv;
@@ -600,10 +599,10 @@ std::vector<float> Flyscene::makePlanes(std::vector<Tucano::Face> box) {
 
 	for (int x = 0; x < box.size(); x++) {
 		Tucano::Face face = box[x];
-		std::vector<GLuint> vertIDs = face.vertex_ids;
-		for (int z = 0; z < vertIDs.size(); z++) {
 
-			vertices.push_back(mesh.getVertex(z));
+		for (int z = 0; z < 3; z++) {
+
+			vertices.push_back(mesh.getVertex(face.vertex_ids[z]));
 
 		}
 
@@ -642,27 +641,37 @@ std::vector<float> Flyscene::makePlanes(std::vector<Tucano::Face> box) {
 std::vector<std::vector<Tucano::Face>> Flyscene::subdivide(Tucano::Mesh mesh) {
 	std::vector<Tucano::Face> bb;
 	std::vector<std::vector<Tucano::Face>> bb2;
-
-
+	
+	float capacity = 10;
 	float totalFaces = 0;
 	for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
 		totalFaces++;
 		bb.push_back(mesh.getFace(i));
 	}
+	bb2.push_back(bb);
+	return bb2;
+
 	float maxval = totalFaces;
 
-	while (totalFaces > 10) {
+	if (totalFaces < capacity){
+		 bb2.push_back(bb);
+		 return bb2;
+	}
 
+	while (totalFaces > capacity) {
+		float check = 0;
+		while (!bb.empty())
+			bb.pop_back();
 
 		totalFaces /= 2;
 		float temp = totalFaces;
 		for (int i = 0; i < totalFaces; i++) {
 			bb.push_back(mesh.getFace(i));
 		}
-			while (totalFaces < maxval) {
-				bb2.push_back(bb);
-				totalFaces += totalFaces;
-			}
+		while (check < maxval) {
+			bb2.push_back(bb);
+			check += totalFaces;
+		}
 		totalFaces = temp;
 		//std::vector <Tucano::Face> ideal_bb_size = bb2.back;
 
