@@ -462,6 +462,7 @@ class Structure {
 	Tucano::Face faces;
 public:
 	std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh);
+	Eigen::Vector3f findPoint(Eigen::Vector3f xMax, Eigen::Vector3f xMin, Eigen::Vector3f yMax, Eigen::Vector3f yMin, Eigen::Vector3f zMin, Eigen::Vector3f zMax);
 };
 
 std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh) {
@@ -492,5 +493,4 @@ std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh) {
 
 	}
 	return bb2;
-
-
+}
