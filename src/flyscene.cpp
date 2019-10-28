@@ -475,8 +475,8 @@ std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh) {
 	}
 	float maxval = totalFaces;
 
-
 	while (totalFaces > 10) {
+
 
 		totalFaces /= 2;
 		float temp = totalFaces;
@@ -488,7 +488,7 @@ std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh) {
 			totalFaces += totalFaces;
 		}
 		totalFaces = temp;
-		std::vector < Tucano::Face> ideal_bb_size = bb2.back;
+		std::vector <Tucano::Face> ideal_bb_size = bb2.back;
 
 	}
 	return bb2;
