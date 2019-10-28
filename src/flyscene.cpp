@@ -50,6 +50,12 @@ void Flyscene::initialize(int width, int height) {
 
   glEnable(GL_DEPTH_TEST);
 
+  for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
+	  Tucano::Face face = mesh.getFace(i);
+	  std::cout << face.vertex_ids[0] << std::endl;
+	  std::cout << face.vertex_ids[1] << std::endl;
+	  std::cout << face.vertex_ids[2] << std::endl;
+  }
   // for (int i = 0; i<mesh.getNumberOfFaces(); ++i){
   //   Tucano::Face face = mesh.getFace(i);    
   //   for (int j =0; j<face.vertex_ids.size(); ++j){
@@ -308,7 +314,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		float tinz = tzmin < tzmax ? tzmin : tzmax;
 		float toutz = tzmin > tzmax ? tzmin : tzmax;
 
-		float tin, tout;
+		float tin = 0;
+		float tout = 0;
 		if (tinx > tiny&& tinx > tinz)
 			tin = tinx;
 		else if (tiny > tinx&& tiny > tinz)
@@ -652,10 +659,10 @@ std::vector<std::vector<Tucano::Face>> Flyscene::subdivide(Tucano::Mesh mesh) {
 		for (int i = 0; i < totalFaces; i++) {
 			bb.push_back(mesh.getFace(i));
 		}
-		while (totalFaces < maxval) {
-			bb2.push_back(bb);
-			totalFaces += totalFaces;
-		}
+			while (totalFaces < maxval) {
+				bb2.push_back(bb);
+				totalFaces += totalFaces;
+			}
 		totalFaces = temp;
 		//std::vector <Tucano::Face> ideal_bb_size = bb2.back;
 
