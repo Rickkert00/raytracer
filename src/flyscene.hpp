@@ -6,7 +6,6 @@
 #include <GL/glew.h>
 
 #include <GLFW/glfw3.h>
-
 #include <tucano/effects/phongmaterialshader.hpp>
 #include <tucano/mesh.hpp>
 #include <tucano/shapes/camerarep.hpp>
@@ -63,14 +62,13 @@ public:
    * @brief raytrace your scene from current camera position   
    */
   void raytraceScene(int width = 0, int height = 0);
-
   /**
    * @brief trace a single ray from the camera passing through dest
    * @param origin Ray origin
    * @param dest Other point on the ray, usually screen coordinates
    * @return a RGB color
    */
-  Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
+Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
 
 
   struct inters_point {
@@ -78,6 +76,8 @@ public:
 	  Eigen::Vector3f point;
 	  Tucano::Face face;
   };
+
+ 
 
   /**
    * @brief calculate intersection point
@@ -89,7 +89,7 @@ public:
   Flyscene::inters_point intersection(Eigen::Vector3f origin,
 	  Eigen::Vector3f dest);
 
-  void barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors,
+  bool barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors,
 	  float& alpha, float& beta);
   /*
   * @brief calculate reflection vector
@@ -106,8 +106,8 @@ public:
 
   Eigen::Vector3f reflectColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
 
-
-
+  float shadowRatio(Eigen::Vector3f intersectionP);
+  
   //Calculates the direction of the refraction of the ray.
   Eigen::Vector3f refractionV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r);
 
@@ -146,6 +146,7 @@ private:
   // Scene meshes
   Tucano::Mesh mesh;
 
+  Eigen::Affine3f shapeModelMatrix;
   
   /// MTL materials
   vector<Tucano::Material::Mtl> materials;
