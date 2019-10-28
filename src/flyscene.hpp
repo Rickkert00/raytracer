@@ -106,10 +106,11 @@ public:
 
   Eigen::Vector3f reflectColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
 
+  Eigen::Vector3f refractColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
 
 
   //Calculates the direction of the refraction of the ray.
-  Eigen::Vector3f refractionV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r);
+  Eigen::Vector3f refractionV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float r);
 
   //Calculates if the number is in range, used to check if it's in the range of frustum. (Based on c++17 function)
   float clamp(float x, float low, float high);
