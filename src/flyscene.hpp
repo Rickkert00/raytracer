@@ -17,7 +17,7 @@
 #include <tucano/utils/objimporter.hpp>
 
 const int MAX_REFLECT = 3;
-const int SHADOW_SMOOTHNESS = 15;
+const int SHADOW_SMOOTHNESS = 5;
 const bool SOFT_SHADOWS = false;
 
 class Flyscene {
@@ -72,14 +72,11 @@ public:
    */
 Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
 
-
   struct inters_point {
 	  bool intersected;
 	  Eigen::Vector3f point;
 	  Tucano::Face face;
   };
-
- 
 
   /**
    * @brief calculate intersection point
@@ -108,7 +105,7 @@ Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
 
   Eigen::Vector3f reflectColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
 
-  float shadowRatio(Eigen::Vector3f intersectionP);
+  float shadowRatio(Eigen::Vector3f intersectionP, Tucano::Face face);
   
   //Calculates the direction of the refraction of the ray.
   Eigen::Vector3f refractionV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r);
