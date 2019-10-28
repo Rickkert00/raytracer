@@ -146,8 +146,10 @@ private:
   // Scene meshes
   Tucano::Mesh mesh;
 
-
+  std::vector<float> makePlanes(std::vector<Tucano::Face> box);
   
+  std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh);
+
   /// MTL materials
   vector<Tucano::Material::Mtl> materials;
 };

@@ -11,7 +11,7 @@ const Eigen::Vector4f backgroundColor = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
 void Flyscene::initialize(int width, int height) {
   // initiliaze the Phong Shading effect for the Opengl Previewer
   phong.initialize();
-
+  
  
   // set the camera's projection matrix
   flycamera.setPerspectiveMatrix(60.0, width / (float)height, 0.1f, 100.0f);
@@ -285,94 +285,223 @@ Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f& view, Eigen::Vector3f& no
 
 Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 	Eigen::Vector3f dest) {
+	std::vector<std::vector<Tucano::Face>> bboxes = subdivide(mesh);
 
-	Eigen::Vector3f intersectionv;
-	std::vector<float> ts;
-	std::vector<Eigen::Vector3f> directions;
-	std::vector<Eigen::Vector3f> normals;
-	std::vector<Tucano::Face> faces;
-	for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
-		Tucano::Face face = mesh.getFace(i);
-		/*std::cout << i << std::endl;*/
-		float alpha;
-		float beta;
+	
+	for (int i = 0; i < bboxes.size(); i++) {
+		std::vector<Tucano::Face> box = bboxes[i];
+		std::vector<float> myCoords = makePlanes(box);
+		std::vector<float> intersPoints;
 
-		Eigen::Vector3f directionV = (dest - origin);
-		Eigen::Vector3f facenormal = face.normal.normalized();
-		//float distance = pow((pow(directionV.x(), 2) + pow(directionV.y(), 2) + pow(directionV.z(), 2)), 0.5);
-		directionV.normalize();
-		Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[0]);
-		Eigen::Matrix4f matrix = Eigen::Matrix4f(mesh.getShapeModelMatrix().matrix());
-		//homogeneous = homogeneous.m * matrix;
-		Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
-		float distance = facenormal.dot(Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w()));
-		float origin_normal = origin.dot(facenormal);
-		float direction_normal = directionV.dot(facenormal);
+		Eigen::Vector3f d = dest - origin;
+		float txmin = (myCoords[0] - origin.x()) / d.x();
+		float tymin = (myCoords[1] - origin.y()) / d.y();
+		float tzmin = (myCoords[2] - origin.z()) / d.z();
+		float txmax = (myCoords[3] - origin.x()) / d.x();
+		float tymax = (myCoords[4] - origin.y()) / d.y();
+		float tzmax = (myCoords[5] - origin.z()) / d.z();
 
-		//check whether ray is parallel to plane
-		if (fabs(direction_normal) < minCheck || distance == 0) {
-			continue;
+		float tinx = txmin < txmax ? txmin : txmax;
+		float toutx = txmin > txmax ? txmin : txmax;
+		float tiny = tymin < tymax ? tymin : tymax;
+		float touty = tymin > tymax ? tymin : tymax;
+		float tinz = tzmin < tzmax ? tzmin : tzmax;
+		float toutz = tzmin > tzmax ? tzmin : tzmax;
+
+		float tin, tout;
+		if (tinx > tiny&& tinx > tinz)
+			tin = tinx;
+		else if (tiny > tinx&& tiny > tinz)
+			tin = tiny;
+		else if (tinz > tinx&& tinz > tiny)
+			tin = tinz;
+
+		if (tinx < tiny&& tinx < tinz)
+			tout = tinx;
+		else if (tiny < tinx&& tiny < tinz)
+			tout = tiny;
+		else if (tinz < tinx&& tinz < tiny)
+			tout = tinz;
+
+		/// if the ray hits our box
+		if (!(tin > tout || tout < 0)) {
+			Eigen::Vector3f intersectionv;
+			std::vector<float> ts;
+			std::vector<Eigen::Vector3f> directions;
+			std::vector<Eigen::Vector3f> normals;
+			std::vector<Tucano::Face> faces;
+			for (int i = 0; i < box.size(); ++i) {
+				Tucano::Face face = box[i];
+				/*std::cout << i << std::endl;*/
+				float alpha;
+				float beta;
+
+				Eigen::Vector3f directionV = (dest - origin);
+				Eigen::Vector3f facenormal = face.normal.normalized();
+				//float distance = pow((pow(directionV.x(), 2) + pow(directionV.y(), 2) + pow(directionV.z(), 2)), 0.5);
+				directionV.normalize();
+				Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[0]);
+				Eigen::Matrix4f matrix = Eigen::Matrix4f(mesh.getShapeModelMatrix().matrix());
+				//homogeneous = homogeneous.m * matrix;
+				Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
+				float distance = facenormal.dot(Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w()));
+				float origin_normal = origin.dot(facenormal);
+				float direction_normal = directionV.dot(facenormal);
+
+				//check whether ray is parallel to plane
+				if (fabs(direction_normal) < minCheck || distance == 0) {
+					continue;
+				}
+
+				float t = (distance - origin_normal) / direction_normal;
+				if (t <= 0) {
+					continue;
+				}
+
+				intersectionv = origin + t * directionV;
+
+				//check whether intersection is inside triangle
+				std::vector<Eigen::Vector3f> vectors;
+				for (int j = 0; j < 3; j++) {
+					Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[j]);
+					Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
+					vectors.push_back(real);
+				}
+
+				float v1x = vectors[0][0];
+				float v1y = vectors[0][1];
+				float v2x = vectors[1][0];
+				float v2y = vectors[1][1];
+				float v3x = vectors[2][0];
+				float v3y = vectors[2][1];
+
+				//std::cout << v1x << " " << v1y << " " << v2x << " " << v2y << " " << v3x << " " << v3y << std::endl;
+
+				//alpha = (v1x * (v3y - v1y) + (intersectionv.y() - v1y) * (v3x - v1x) - (intersectionv.x() * (v3y - v1y)))
+				//	/ ((v2y - v1y) * (v3x - v1x) - (v2x - v1x) * (v3y - v1y));
+				//beta = (intersectionv.y() - v1y - alpha * (v2y - v1y))
+				//	/ (v3y - v1y);
+
+				barycentric(intersectionv, vectors, alpha, beta);
+
+				//if true then inside triangle
+
+				if (alpha >= 0 && beta >= 0 && (alpha + beta) <= 1) {
+					/*std::cout << "Found intersection at" << std::endl << intersectionv << std::endl;
+					std::cout << "distance: " << distance << " t: " << t << " alpha: " << alpha << " beta: " << beta << std::endl;*/
+					ts.push_back(t);
+					normals.push_back(facenormal);
+					directions.push_back(directionV);
+					faces.push_back(face);
+				}
+			}
+			if (ts.size() == 0) {
+				return Flyscene::inters_point{ false, Eigen::Vector3f(), Tucano::Face() };
+			}
+			else {
+				//calc correct intersection point(closest to the camera)
+				float min = *std::min_element(ts.begin(), ts.end());
+				std::vector<float>::iterator indexit = std::find(ts.begin(), ts.end(), min);
+				float index = indexit - ts.begin();
+				//get material of corresponding face
+				Eigen::Vector3f direction = directions[index];
+				//get normalv
+				/*std::cout << "normal before struct: " << normals[index] << std::endl;
+				std::cout << "intersection point before struct: " << origin + min * direction << std::endl;*/
+				Eigen::Vector3f point = origin + min * direction;
+				Tucano::Face face = faces[index];
+				return Flyscene::inters_point{ true, point, face };
+			}
 		}
 
-		float t = (distance - origin_normal) / direction_normal;
-		if (t <= 0) {
-			continue;
-		}
-
-		intersectionv = origin + t * directionV;
-
-		//check whether intersection is inside triangle
-		std::vector<Eigen::Vector3f> vectors;
-		for (int j = 0; j < 3; j++) {
-			Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[j]);
-			Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
-			vectors.push_back(real);
-		}
-
-		float v1x = vectors[0][0];
-		float v1y = vectors[0][1];
-		float v2x = vectors[1][0];
-		float v2y = vectors[1][1];
-		float v3x = vectors[2][0];
-		float v3y = vectors[2][1];
-
-		//std::cout << v1x << " " << v1y << " " << v2x << " " << v2y << " " << v3x << " " << v3y << std::endl;
-
-		//alpha = (v1x * (v3y - v1y) + (intersectionv.y() - v1y) * (v3x - v1x) - (intersectionv.x() * (v3y - v1y)))
-		//	/ ((v2y - v1y) * (v3x - v1x) - (v2x - v1x) * (v3y - v1y));
-		//beta = (intersectionv.y() - v1y - alpha * (v2y - v1y))
-		//	/ (v3y - v1y);
-
-		barycentric(intersectionv, vectors, alpha, beta);
-
-		//if true then inside triangle
-
-		if (alpha >= 0 && beta >= 0 && (alpha + beta) <= 1) {
-			/*std::cout << "Found intersection at" << std::endl << intersectionv << std::endl;
-			std::cout << "distance: " << distance << " t: " << t << " alpha: " << alpha << " beta: " << beta << std::endl;*/
-			ts.push_back(t);
-			normals.push_back(facenormal);
-			directions.push_back(directionV);
-			faces.push_back(face);
-		}
 	}
-	if (ts.size() == 0) {
-		return Flyscene::inters_point{ false, Eigen::Vector3f(), Tucano::Face() };
-	}
-	else {
-		//calc correct intersection point(closest to the camera)
-		float min = *std::min_element(ts.begin(), ts.end());
-		std::vector<float>::iterator indexit = std::find(ts.begin(), ts.end(), min);
-		float index = indexit - ts.begin();
-		//get material of corresponding face
-		Eigen::Vector3f direction = directions[index];
-		//get normalv
-		/*std::cout << "normal before struct: " << normals[index] << std::endl;
-		std::cout << "intersection point before struct: " << origin + min * direction << std::endl;*/
-		Eigen::Vector3f point = origin + min * direction;
-		Tucano::Face face = faces[index];
-		return Flyscene::inters_point{ true, point, face };
-	}
+	//Eigen::Vector3f intersectionv;
+	//std::vector<float> ts;
+	//std::vector<Eigen::Vector3f> directions;
+	//std::vector<Eigen::Vector3f> normals;
+	//std::vector<Tucano::Face> faces;
+	//for (int i = 0; i < mesh.getNumberOfFaces(); ++i) {
+	//	Tucano::Face face = mesh.getFace(i);
+	//	/*std::cout << i << std::endl;*/
+	//	float alpha;
+	//	float beta;
+
+	//	Eigen::Vector3f directionV = (dest - origin);
+	//	Eigen::Vector3f facenormal = face.normal.normalized();
+	//	//float distance = pow((pow(directionV.x(), 2) + pow(directionV.y(), 2) + pow(directionV.z(), 2)), 0.5);
+	//	directionV.normalize();
+	//	Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[0]);
+	//	Eigen::Matrix4f matrix = Eigen::Matrix4f(mesh.getShapeModelMatrix().matrix());
+	//	//homogeneous = homogeneous.m * matrix;
+	//	Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
+	//	float distance = facenormal.dot(Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w()));
+	//	float origin_normal = origin.dot(facenormal);
+	//	float direction_normal = directionV.dot(facenormal);
+
+	//	//check whether ray is parallel to plane
+	//	if (fabs(direction_normal) < minCheck || distance == 0) {
+	//		continue;
+	//	}
+
+	//	float t = (distance - origin_normal) / direction_normal;
+	//	if (t <= 0) {
+	//		continue;
+	//	}
+
+	//	intersectionv = origin + t * directionV;
+
+	//	//check whether intersection is inside triangle
+	//	std::vector<Eigen::Vector3f> vectors;
+	//	for (int j = 0; j < 3; j++) {
+	//		Eigen::Vector4f homogeneous = mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[j]);
+	//		Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
+	//		vectors.push_back(real);
+	//	}
+
+	//	float v1x = vectors[0][0];
+	//	float v1y = vectors[0][1];
+	//	float v2x = vectors[1][0];
+	//	float v2y = vectors[1][1];
+	//	float v3x = vectors[2][0];
+	//	float v3y = vectors[2][1];
+
+	//	//std::cout << v1x << " " << v1y << " " << v2x << " " << v2y << " " << v3x << " " << v3y << std::endl;
+
+	//	//alpha = (v1x * (v3y - v1y) + (intersectionv.y() - v1y) * (v3x - v1x) - (intersectionv.x() * (v3y - v1y)))
+	//	//	/ ((v2y - v1y) * (v3x - v1x) - (v2x - v1x) * (v3y - v1y));
+	//	//beta = (intersectionv.y() - v1y - alpha * (v2y - v1y))
+	//	//	/ (v3y - v1y);
+
+	//	barycentric(intersectionv, vectors, alpha, beta);
+
+	//	//if true then inside triangle
+
+	//	if (alpha >= 0 && beta >= 0 && (alpha + beta) <= 1) {
+	//		/*std::cout << "Found intersection at" << std::endl << intersectionv << std::endl;
+	//		std::cout << "distance: " << distance << " t: " << t << " alpha: " << alpha << " beta: " << beta << std::endl;*/
+	//		ts.push_back(t);
+	//		normals.push_back(facenormal);
+	//		directions.push_back(directionV);
+	//		faces.push_back(face);
+	//	}
+	//}
+	//if (ts.size() == 0) {
+	//	return Flyscene::inters_point{ false, Eigen::Vector3f(), Tucano::Face() };
+	//}
+	//else {
+	//	//calc correct intersection point(closest to the camera)
+	//	float min = *std::min_element(ts.begin(), ts.end());
+	//	std::vector<float>::iterator indexit = std::find(ts.begin(), ts.end(), min);
+	//	float index = indexit - ts.begin();
+	//	//get material of corresponding face
+	//	Eigen::Vector3f direction = directions[index];
+	//	//get normalv
+	//	/*std::cout << "normal before struct: " << normals[index] << std::endl;
+	//	std::cout << "intersection point before struct: " << origin + min * direction << std::endl;*/
+	//	Eigen::Vector3f point = origin + min * direction;
+	//	Tucano::Face face = faces[index];
+	//	return Flyscene::inters_point{ true, point, face };
+	//}
 }
 
 float Flyscene::clamp(float x, float low, float high) {
@@ -457,20 +586,59 @@ Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP,
 
 }
 
-class Structure {
-	Eigen::Vector3f vertice;
-	Tucano::Face faces;
-public:
-	std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh);
-	Eigen::Vector3f findPoint(Eigen::Vector3f xMax, Eigen::Vector3f xMin, Eigen::Vector3f yMax, Eigen::Vector3f yMin, Eigen::Vector3f zMin, Eigen::Vector3f zMax);
-};
 
-std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh) {
+std::vector<float> Flyscene::makePlanes(std::vector<Tucano::Face> box) {
+		
+	std::vector<Eigen::Vector4f> vertices;
+
+	for (int x = 0; x < box.size(); x++) {
+		Tucano::Face face = box[x];
+		std::vector<GLuint> vertIDs = face.vertex_ids;
+		for (int z = 0; z < vertIDs.size(); z++) {
+
+			vertices.push_back(mesh.getVertex(z));
+
+		}
+
+	}
+		
+	Eigen::Vector4f firstVertex = vertices[0];
+	float xmax = firstVertex.x();
+	float xmin = firstVertex.x();
+	float ymax = firstVertex.y();
+	float ymin = firstVertex.y();
+	float zmax = firstVertex.z();
+	float zmin = firstVertex.z();
+	for (int x = 0; x < vertices.size(); x++) {
+		Eigen::Vector4f currentVertex = vertices[x];
+		if (xmin > currentVertex.x()) xmin = currentVertex.x();
+		if (xmax < currentVertex.x()) xmax = currentVertex.x();
+
+		if (ymin > currentVertex.y()) ymin = currentVertex.y();
+		if (ymax < currentVertex.y()) ymax = currentVertex.y();
+
+		if (zmin > currentVertex.z()) zmin = currentVertex.z();
+		if (zmax < currentVertex.z()) zmax = currentVertex.z();
+	}
+
+	std::vector<float> newVector;
+	newVector.push_back(xmin);
+	newVector.push_back(ymin);
+	newVector.push_back(zmin);
+	newVector.push_back(xmax);
+	newVector.push_back(ymax);
+	newVector.push_back(zmax);
+
+	return newVector;
+}
+
+std::vector<std::vector<Tucano::Face>> Flyscene::subdivide(Tucano::Mesh mesh) {
 	std::vector<Tucano::Face> bb;
 	std::vector<std::vector<Tucano::Face>> bb2;
 
+
 	float totalFaces = 0;
-	for (int i = 0; i < mesh.getNumberOfFaces; i++) {
+	for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
 		totalFaces++;
 		bb.push_back(mesh.getFace(i));
 	}
@@ -489,8 +657,9 @@ std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh) {
 			totalFaces += totalFaces;
 		}
 		totalFaces = temp;
-		std::vector <Tucano::Face> ideal_bb_size = bb2.back;
+		//std::vector <Tucano::Face> ideal_bb_size = bb2.back;
 
 	}
+
 	return bb2;
 }
