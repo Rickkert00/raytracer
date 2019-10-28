@@ -461,18 +461,36 @@ class Structure {
 	Eigen::Vector3f vertice;
 	Tucano::Face faces;
 public:
-	std::vector<Eigen::Vector3f> subdivide(Tucano::Mesh mesh);
+	std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh);
 };
 
-std::vector<Eigen::Vector3f> subdivide(Tucano::Mesh mesh) {
-	std::vector<Eigen::Vector3f> bb;
-	
+std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh) {
+	std::vector<Tucano::Face> bb;
+	std::vector<std::vector<Tucano::Face>> bb2;
 
-	for (int i = 0; i < mesh.getNumberOfVertices; i++) {
-		Eigen::Vector4f vertex = mesh.getVertex(i);
-		Eigen::Vector3f normal = mesh.getNormal(i);
-		
-		
+	float totalFaces = 0;
+	for (int i = 0; i < mesh.getNumberOfFaces; i++) {
+		totalFaces++;
+		bb.push_back(mesh.getFace(i));
 	}
-}
+	float maxval = totalFaces;
+
+
+	while (totalFaces > 10) {
+
+		totalFaces /= 2;
+		float temp = totalFaces;
+		for (int i = 0; i < totalFaces; i++) {
+			bb.push_back(mesh.getFace(i));
+		}
+		while (totalFaces < maxval) {
+			bb2.push_back(bb);
+			totalFaces += totalFaces;
+		}
+		totalFaces = temp;
+		std::vector < Tucano::Face> ideal_bb_size = bb2.back;
+
+	}
+	return bb2;
+
 
