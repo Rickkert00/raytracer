@@ -89,7 +89,7 @@ Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
   Flyscene::inters_point intersection(Eigen::Vector3f origin,
 	  Eigen::Vector3f dest);
 
-  void barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors,
+  bool barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors,
 	  float& alpha, float& beta);
   /*
   * @brief calculate reflection vector
