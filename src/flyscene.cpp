@@ -205,30 +205,33 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 	//Counter for how many rays reach the light
 	int raysReachLight = 0;
 
-	//Each iterations shoots a ray to light
-	for (int i = 0; i < totalRaysShot; i++)
-	{
-		//Create two random floats between -0.075 and 0.075
-		//The range will be hardcoded unless we find a way to get the radius of the light
-		float randX = (rand() % 16) / 100 - 0.075;
-		float randY = (rand() % 16) / 100 -0.075;
-		float randZ = (rand() % 16) / 100 - 0.075;
-
-		Eigen::Vector3f offset = Eigen::Vector3f(randX, randY, randZ);
-
-		//Shoot a ray from hit point to light center shifted by the offset vector
-		inters_point rayToLight = intersection(intersectionstruc.point, offset + lights.back());
-
-		//See if ray reaches light. Increment counter if it does
-		if (!rayToLight.intersected)
+	for (int i = 0; i < lights.size(); ++i) {
+		//Each iterations shoots a ray to light
+		for (int i = 0; i < totalRaysShot; i++)
 		{
-			raysReachLight++;
+
+			//Create two random floats between -0.075 and 0.075
+			//The range will be hardcoded unless we find a way to get the radius of the light
+			float randX = (rand() % 16) / 100 - 0.075;
+			float randY = (rand() % 16) / 100 - 0.075;
+			float randZ = (rand() % 16) / 100 - 0.075;
+
+			Eigen::Vector3f offset = Eigen::Vector3f(randX, randY, randZ);
+
+			//Shoot a ray from hit point to light center shifted by the offset vector
+			inters_point rayToLight = intersection(intersectionstruc.point, offset + lights[i]);
+
+			//See if ray reaches light. Increment counter if it does
+			if (!rayToLight.intersected)
+			{
+				raysReachLight++;
+			}
 		}
 	}
 
 	if (intersectionstruc.intersected == true) {
 		//Multiply the rgb value of the pixel by the shadow ratio
-		return (raysReachLight / totalRaysShot) * shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
+		return (raysReachLight / totalRaysShot * lights.size()) * shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
 	}
 	//if miss then return background color
 	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
