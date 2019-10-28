@@ -17,6 +17,8 @@
 #include <tucano/utils/objimporter.hpp>
 
 const int MAX_REFLECT = 3;
+const int SHADOW_SMOOTHNESS = 15;
+const bool SOFT_SHADOWS = false;
 
 class Flyscene {
 
