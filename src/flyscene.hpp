@@ -16,7 +16,7 @@
 #include <tucano/utils/mtlIO.hpp>
 #include <tucano/utils/objimporter.hpp>
 
-const int MAX_REFLECT = 3;
+const int MAX_REFLECT = 1;
 const int SHADOW_SMOOTHNESS = 5;
 const bool SOFT_SHADOWS = false;
 
@@ -96,8 +96,8 @@ Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
   * @param normal Normal of surface to reflect on
   * @return direction of reflection vector
   */
-  Eigen::Vector3f reflect(Eigen::Vector3f& incoming,
-	  Eigen::Vector3f& normal);
+  Eigen::Vector3f reflect(Eigen::Vector3f incoming,
+	  Eigen::Vector3f normal);
 
   Eigen::Vector3f shade(int level, int maxlevel, Eigen::Vector3f p,Eigen::Vector3f ray, Tucano::Face face);
 
@@ -108,7 +108,7 @@ Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
   float shadowRatio(Eigen::Vector3f intersectionP, Tucano::Face face);
   
   //Calculates the direction of the refraction of the ray.
-  Eigen::Vector3f refractionV(Eigen::Vector3f& Inc, Eigen::Vector3f& Outc, float& r);
+  Eigen::Vector3f refractionV(Eigen::Vector3f Inc, Eigen::Vector3f Outc, float r);
 
   //Calculates if the number is in range, used to check if it's in the range of frustum. (Based on c++17 function)
   float clamp(float x, float low, float high);
@@ -141,6 +141,8 @@ private:
 
   ///vector containing consecutive reflections
   std::vector<Tucano::Shapes::Cylinder> reflections;
+
+  std::vector<Tucano::Shapes::Cylinder> refractions;
 
   // Scene meshes
   Tucano::Mesh mesh;
