@@ -440,6 +440,8 @@ Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP,
 
 Eigen::Vector3f Flyscene::refractColor(int level, Eigen::Vector3f intersectionP, Eigen::Vector3f ray, Tucano::Face face) {
 	Tucano::Material::Mtl current_material = materials[face.material_id];
+	Eigen::Vector3f specular = current_material.getSpecular();
+
 	float index = current_material.getOpticalDensity();
 	float transparency = current_material.getDissolveFactor();
 
@@ -453,7 +455,8 @@ Eigen::Vector3f Flyscene::refractColor(int level, Eigen::Vector3f intersectionP,
 
 	if (transparency != 1.0)
 	{
-		return Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face);
+		//return Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face);
+		return (Eigen::Vector3f(1, 1, 1) - specular).cwiseProduct(Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face));
 	}
 	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 
