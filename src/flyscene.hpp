@@ -16,7 +16,10 @@
 #include <tucano/utils/mtlIO.hpp>
 #include <tucano/utils/objimporter.hpp>
 
-const int MAX_REFLECT = 3;
+const int MAX_REFLECT = 0;
+const int SHADOW_SMOOTHNESS = 5;
+const bool SOFT_SHADOWS = false;
+const int AMOUNT_FACES = 3;
 
 class Flyscene {
 
@@ -70,14 +73,11 @@ public:
    */
 Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
 
-
   struct inters_point {
 	  bool intersected;
 	  Eigen::Vector3f point;
 	  Tucano::Face face;
   };
-
- 
 
   /**
    * @brief calculate intersection point
@@ -97,8 +97,10 @@ Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
   * @param normal Normal of surface to reflect on
   * @return direction of reflection vector
   */
-  Eigen::Vector3f reflect(Eigen::Vector3f& incoming,
-	  Eigen::Vector3f& normal);
+  Eigen::Vector3f reflect(Eigen::Vector3f incoming,
+	  Eigen::Vector3f normal);
+
+  Eigen::Vector3f refractColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
 
   Eigen::Vector3f shade(int level, int maxlevel, Eigen::Vector3f p,Eigen::Vector3f ray, Tucano::Face face);
 
@@ -106,12 +108,10 @@ Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
 
   Eigen::Vector3f reflectColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
 
-  Eigen::Vector3f refractColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
-
-  float shadowRatio(Eigen::Vector3f intersectionP);
+  float shadowRatio(Eigen::Vector3f intersectionP, Tucano::Face face);
   
   //Calculates the direction of the refraction of the ray.
-  Eigen::Vector3f refractionV(Eigen::Vector3f& view, Eigen::Vector3f& normal, float index);
+  Eigen::Vector3f refractionV(Eigen::Vector3f Inc, Eigen::Vector3f Outc, float r);
 
   //Calculates if the number is in range, used to check if it's in the range of frustum. (Based on c++17 function)
   float clamp(float x, float low, float high);
@@ -145,11 +145,18 @@ private:
   ///vector containing consecutive reflections
   std::vector<Tucano::Shapes::Cylinder> reflections;
 
+  std::vector<Tucano::Shapes::Cylinder> refractions;
+
   // Scene meshes
   Tucano::Mesh mesh;
 
+  std::vector<float> makePlanes(std::vector<Tucano::Face> box);
   Eigen::Affine3f shapeModelMatrix;
   
+  std::vector<std::vector<Tucano::Face>> subdivide();
+  
+  std::vector<std::vector<Tucano::Face>> split(std::vector<float> bounds, std::vector<Tucano::Face> bb, Eigen::Vector4f avg);
+
   /// MTL materials
   vector<Tucano::Material::Mtl> materials;
 };
