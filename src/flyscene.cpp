@@ -309,20 +309,22 @@ Eigen::Vector3f  Flyscene::traceRay(Eigen::Vector3f& origin,
 Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f view, Eigen::Vector3f normal, float index) {
 
 	float cos = clamp(view.dot(normal), -1.0f, 1.0f);
+	//float cos = view.normalized().dot(normal.normalized());
 	float i = 1;
 	float x = index;
 	Eigen::Vector3f norm = normal;
-	if (cos < 0) {
-		cos = -cos;
+    if (cos < 0) {
+		cos = -cos;	
 	}
 	else {
-		std::swap(i, x);
+		//std::swap(i, x);
 		norm = -normal;
 	}
 
 	float y = i / x;
-
-	float z = 1 - y * y * (1 - cos * cos);
+	std::cout << "y: " << y << std::endl;
+	float z = 1 - (y * y )* (1 - cos * cos);
+	std::cout << "z: " << z << std::endl;
 
 	if (z < 0) {
 		return Eigen::Vector3f(0.0, 0.0, 0.0);
