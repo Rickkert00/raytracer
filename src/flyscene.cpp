@@ -115,50 +115,6 @@ void Flyscene::simulate(GLFWwindow *window) {
   flycamera.translate(dx, dy, dz);
 }
 
-void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
-  ray.resetModelMatrix();
-  // from pixel position to world coordinates
-  Eigen::Vector3f screen_pos = flycamera.screenToWorld(mouse_pos);
-
-  // direction from camera center to click position
-  Eigen::Vector3f dir = (screen_pos - flycamera.getCenter()).normalized();
-  Eigen::Vector3f origin = flycamera.getCenter();
-
-  //calculate intersection point with scene(closest intersection found)
-  inters_point intersectionstruc = intersection(origin, screen_pos);
-  std::cout << "intersection after struct: " << intersectionstruc.point << std::endl;
-  std::cout << "normal after struct: " << intersectionstruc.face.normal << std::endl;
-
-  //if intersection is the infinite vector, the ray intersects with no triangle
-  ray.setOriginOrientation(flycamera.getCenter(), dir);
-  if (intersectionstruc.intersected) {
-	  float height = (intersectionstruc.point - flycamera.getCenter()).norm();
-	  ray.setSize(0.01, height);
-  }
-
-  //calculate reflection ray and draw it
-  //reset reflections again
-  reflections.clear();
-  if (intersectionstruc.intersected) {
-	  Eigen::Vector3f incoming = intersectionstruc.point - flycamera.getCenter();
-
-	  Eigen::Vector3f normalized_normal = intersectionstruc.face.normal.normalized();
-
-	  Eigen::Vector3f reflection = refractionV(incoming, normalized_normal, 1.0);
-	  std::cout << "reflection: " << reflection << std::endl;
-	  Tucano::Shapes::Cylinder reflected = Tucano::Shapes::Cylinder(0.01, 1.0, 16, 64);
-	  reflected.resetModelMatrix();
-	  reflected.setOriginOrientation(intersectionstruc.point, reflection.normalized());
-	  reflected.setSize(0.01, 10);
-	  reflections.push_back(reflected);
-	  std::cout << reflections[0].getRadius() << std::endl;
-	  std::cout << reflections[0].getHeight() << std::endl;
-  }
- 
-  // place the camera representation (frustum) on current camera location, 
-  camerarep.resetModelMatrix();
-  camerarep.setModelMatrix(flycamera.getViewMatrix().inverse());
-}
 
 void Flyscene::raytraceScene(int width, int height) {
   std::cout << "ray tracing ..." << std::endl;
