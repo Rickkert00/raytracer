@@ -14,6 +14,7 @@ const Eigen::Vector4f backgroundColor = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
 std::vector<std::vector<Tucano::Face>> bboxes;
 vector<vector<Eigen::Vector3f>> pixel_data;
 double shadowBias = 1e-4;
+int pixel = 0;
 
 void Flyscene::initialize(int width, int height) {
 	// initiliaze the Phong Shading effect for the Opengl Previewer
@@ -25,7 +26,7 @@ void Flyscene::initialize(int width, int height) {
 
 	// load the OBJ file and materials
 	Tucano::MeshImporter::loadObjFile(mesh, materials,
-		"resources/models/cube.obj");
+		"resources/models/bunny.obj");
 
 	// normalize the model (scale to unit cube and center at origin)
 	mesh.normalizeModelMatrix();
@@ -44,6 +45,15 @@ void Flyscene::initialize(int width, int height) {
 	lights.push_back(Eigen::Vector3f(-1.0, 1.0, 1.0));
 
 	bboxes = subdivide();
+	int sum = 0;
+	int numberOfFaces = mesh.getNumberOfFaces();
+	cout << "NUMBER OF BOXES: "<< bboxes.size()<<endl;
+	for (int i = 0; i < bboxes.size(); i++) {
+		std::vector<Tucano::Face> box = bboxes[i];
+		sum += box.size();
+		cout << box.size() << endl;
+	}
+	cout << sum << " " << numberOfFaces;
 	// scale the camera representation (frustum) for the ray debug
 	camerarep.shapeMatrix()->scale(0.2);
 
@@ -51,7 +61,7 @@ void Flyscene::initialize(int width, int height) {
 	ray.setSize(0.005, 10.0);
 
 	// craete a first debug ray pointing at the center of the screen
-	createDebugRay(Eigen::Vector2f(width / 2.0, height / 2.0));
+	//createDebugRay(Eigen::Vector2f(width / 2.0, height / 2.0));
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -223,12 +233,12 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 			refractionstruc = intersection(refractionstruc.point, refraction);
 			if (refractionstruc.intersected) {
 				refracted.setSize(0.005, (refractionstruc.point - intersectionp2).norm());
-				std::cout << refraction << std::endl;
+				//std::cout << refraction << std::endl;
 				refractions.push_back(refracted);
 				previousIntersect2 = intersectionp2;
 			}
 			else {
-				std::cout << refraction << std::endl;
+				//std::cout << refraction << std::endl;
 				refracted.setSize(0.005, 0.5);
 				refractions.push_back(refracted);
 				break;
@@ -301,6 +311,8 @@ Eigen::Vector3f  Flyscene::traceRay(Eigen::Vector3f& origin,
 
 	if (intersectionstruc.intersected == true) {
 		//Multiply the rgb value of the pixel by the shadow ratio
+		std::cout << pixel << std::endl;
+		pixel++;
 		return shadowratio * shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
 	}
 	//if miss then return background color
@@ -365,8 +377,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		float tymax = (myCoords[4] - origin.y()) / d.y();
 		float tzmax = (myCoords[5] - origin.z()) / d.z();
 
-		std::cout << "txmin: " << txmin << endl;
-		cout << "txmax: " << txmax << endl;
+		//std::cout << "txmin: " << txmin << endl;
+		//cout << "txmax: " << txmax << endl;
 		float tinx = txmin < txmax ? txmin : txmax;
 		float toutx = txmin > txmax ? txmin : txmax;
 		float tiny = tymin < tymax ? tymin : tymax;
@@ -393,7 +405,7 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 
 		/// if the ray hits our box
 		if (!(tin > tout || tout < 0)) {
-			cout << "hit" << endl;
+			//cout << "hit" << endl;
 			Eigen::Vector3f intersectionv;
 			std::vector<float> ts;
 			std::vector<Eigen::Vector3f> directions;
@@ -635,11 +647,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 
 		for (int x = 0; x < box.size(); x++) {
 			Tucano::Face face = box[x];
-
 			for (int z = 0; z < 3; z++) {
-
-				vertices.push_back(mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[z]));
-
+				vertices.push_back(shapeModelMatrix * mesh.getVertex(face.vertex_ids[z]));
 			}
 		}
 
