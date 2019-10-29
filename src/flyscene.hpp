@@ -16,9 +16,10 @@
 #include <tucano/utils/mtlIO.hpp>
 #include <tucano/utils/objimporter.hpp>
 
-const int MAX_REFLECT = 1;
+const int MAX_REFLECT = 2;
 const int SHADOW_SMOOTHNESS = 5;
 const bool SOFT_SHADOWS = false;
+const float REFLECT_BIAS = 0.01;
 
 class Flyscene {
 
