@@ -237,7 +237,6 @@ Eigen::Vector3f  Flyscene::traceRay(Eigen::Vector3f& origin,
 	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 }
 
-
 //Calculates the direction of the refraction when the ray is inside the object and outside.
 Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f view, Eigen::Vector3f normal, float index) {
 
@@ -477,7 +476,7 @@ Eigen::Vector3f Flyscene::shade(int level, int maxlevel, Eigen::Vector3f interse
 	if (intersection == Eigen::Vector3f()) {
 		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 	}
-	if (level <= maxlevel) {
+	if (level < maxlevel) {
 		return directColor(intersection, ray, face) + reflectColor(level, intersection, ray, face);
 	}
 	return directColor(intersection, ray, face);
@@ -514,7 +513,7 @@ Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tu
 	float diffuseDot = lightDir.dot(normal);
 	float diffuseBounded = (diffuseDot > 0.0) ? diffuseDot : 0.0;
 	Eigen::Vector3f diffuse = lightIntensity.cwiseProduct(kd) * diffuseBounded;
-
+	 
 	//specular term
 	Eigen::Vector3f reflectV = reflect(lightDir, face.normal.normalized()).normalized();
 	Eigen::Vector3f cameraV = flycamera.getCenter() - p;
@@ -533,7 +532,7 @@ Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP,
 	inters_point newIntersection = intersection(intersectionP + reflectV * reflectBias, reflectV + intersectionP);
 	//if reflection doesnt intersect then return background color
 	if (newIntersection.intersected == false && !specular.isZero()) {
-		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
+		return specular.cwiseProduct(Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z()));
 	}
 	//check if material is reflective, if so then go calculate recursion
 	if (!specular.isZero()) {
@@ -552,11 +551,11 @@ Eigen::Vector3f Flyscene::refractColor(int level, Eigen::Vector3f intersectionP,
 	inters_point newIntersection = intersection(intersectionP + refractV * reflectBias, refractV + intersectionP);
 
 	if (newIntersection.intersected == false && transparency < 1) {
-		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
+		return (Eigen::Vector3f(1, 1, 1) - specular).cwiseProduct(Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z()));
 	}
 
 	if (transparency != 1.0) {
-		return (Eigen::Vector3f(1, 1, 1)-specular).cwiseProduct(Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, 
+		return (Eigen::Vector3f(1, 1, 1) - specular).cwiseProduct(Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, 
 			newIntersection.point - intersectionP, newIntersection.face));
 	}
 	return Eigen::Vector3f(0.0, 0.0, 0.0);
