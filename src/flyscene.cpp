@@ -222,6 +222,12 @@ Eigen::Vector3f  Flyscene::traceRay(Eigen::Vector3f& origin,
 
 	inters_point intersectionstruc = intersection(origin, dest);
 
+	if (percentage != pixel / 10000) {
+		percentage = pixel / 10000;
+		std::cout << percentage << "%" << std::endl;
+	}
+	pixel++;
+
 	if (intersectionstruc.intersected == true) {
 		//Multiply the rgb value of the pixel by the shadow ratio
 		float shadowratio = shadowRatio(intersectionstruc.point, intersectionstruc.face);
