@@ -10,7 +10,6 @@
 constexpr float minCheck = 1e-8;
 const Eigen::Vector4f backgroundColor = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
 vector<vector<Eigen::Vector3f>> pixel_data;
-double shadowBias = 1e-4;
 
 void Flyscene::initialize(int width, int height) {
 	// initiliaze the Phong Shading effect for the Opengl Previewer
@@ -22,7 +21,7 @@ void Flyscene::initialize(int width, int height) {
 
 	// load the OBJ file and materials
 	Tucano::MeshImporter::loadObjFile(mesh, materials,
-		"resources/models/CubeMirror.obj");
+		"resources/models/cube.obj");
 
 	// normalize the model (scale to unit cube and center at origin)
 	mesh.normalizeModelMatrix();
@@ -61,6 +60,8 @@ void Flyscene::initialize(int width, int height) {
 	//   std::cout<<"mat id "<<face.material_id<<std::endl<<std::endl;
 	//   std::cout<<"face   normal "<<face.normal.transpose() << std::endl << std::endl;
 	// }
+
+
 }
 
 void Flyscene::paintGL(void) {
@@ -89,11 +90,6 @@ void Flyscene::paintGL(void) {
 		reflections[i].render(flycamera, scene_light);
 	}
 
-	for (int i = 0; i < refractions.size(); i++) {
-		refractions[i].render(flycamera, scene_light);
-	}
-
-
 	// render ray tracing light sources as yellow spheres
 	for (int i = 0; i < lights.size(); ++i) {
 		lightrep.resetModelMatrix();
@@ -109,18 +105,18 @@ void Flyscene::simulate(GLFWwindow* window) {
 	// Update the camera.
 	// NOTE(mickvangelderen): GLFW 3.2 has a problem on ubuntu where some key
 	// events are repeated: https://github.com/glfw/glfw/issues/747. Sucks.
-	float dx = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 0.5 : 0.0) -
-		(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 0.5 : 0.0);
+	float dx = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 1.0 : 0.0) -
+		(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 1.0 : 0.0);
 	float dy = (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS ||
 		glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS
-		? 0.5
+		? 1.0
 		: 0.0) -
 		(glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS ||
 			glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS
-			? 0.5
+			? 1.0
 			: 0.0);
-	float dz = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 0.5 : 0.0) -
-		(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 0.5 : 0.0);
+	float dz = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 1.0 : 0.0) -
+		(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 1.0 : 0.0);
 	flycamera.translate(dx, dy, dz);
 }
 
@@ -135,110 +131,39 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 
 	//calculate intersection point with scene(closest intersection found)
 	inters_point intersectionstruc = intersection(origin, screen_pos);
-	Eigen::Vector3f shadingresult = shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
+	std::cout << "intersection after struct: " << intersectionstruc.point << std::endl;
+	std::cout << "normal after struct: " << intersectionstruc.face.normal << std::endl;
+
 	//if intersection is the infinite vector, the ray intersects with no triangle
 	ray.setOriginOrientation(flycamera.getCenter(), dir);
 	if (intersectionstruc.intersected) {
 		float height = (intersectionstruc.point - flycamera.getCenter()).norm();
-		ray.setSize(0.005, height);
+		ray.setSize(0.01, height);
 	}
 
-<<<<<<< HEAD
 	//calculate reflection ray and draw it
 	//reset reflections again
 	reflections.clear();
-	Eigen::Vector3f previousIntersect = flycamera.getCenter();
-	Eigen::Vector3f incoming = (intersectionstruc.point - previousIntersect);
-	Eigen::Vector3f intersectionp = intersectionstruc.point;
-	Eigen::Vector3f normalized_normal = intersectionstruc.face.normal.normalized();
-	Eigen::Vector3f reflection = reflect(incoming, normalized_normal).normalized();
+	if (intersectionstruc.intersected) {
+		Eigen::Vector3f incoming = intersectionstruc.point - flycamera.getCenter();
 
-	// calc refractions
-	refractions.clear();
-	//Eigen::Vector3f refraction = refractionV(incoming, normalized_normal, materials[intersectionstruc.face.material_id].getOpticalDensity()).normalized();
-	Eigen::Vector3f refraction = refractionV(incoming, normalized_normal, 1.4).normalized();
+		Eigen::Vector3f normalized_normal = intersectionstruc.face.normal.normalized();
 
-	Eigen::Vector3f incoming2 = (intersectionstruc.point - previousIntersect);
-	Eigen::Vector3f intersectionp2 = intersectionstruc.point;
-	Eigen::Vector3f normalized_normal2 = intersectionstruc.face.normal.normalized();
-	inters_point refractionstruc = intersectionstruc;
-	Eigen::Vector3f previousIntersect2 = flycamera.getCenter();
-	for (int i = 0; i < MAX_REFLECT; i++) {
-		if (intersectionstruc.intersected) {
-			incoming = (intersectionstruc.point - previousIntersect).normalized();
-
-			normalized_normal = intersectionstruc.face.normal.normalized();
-	        intersectionp = intersectionstruc.point;
-					   
-			reflection = reflect(incoming, normalized_normal).normalized();
-			
-
-			Tucano::Shapes::Cylinder reflected = Tucano::Shapes::Cylinder(0.005, 1.0, 16, 64);
-			reflected.resetModelMatrix();
-			reflected.resetShapeMatrix();
-			reflected.resetLocations();
-			reflected.reset();
-			reflected.setOriginOrientation(intersectionp, reflection);
-
-			intersectionstruc = intersection(intersectionstruc.point, reflection);
-			if (intersectionstruc.intersected) {
-				reflected.setSize(0.005, (intersectionstruc.point - intersectionp).norm());
-				reflections.push_back(reflected);
-				previousIntersect = intersectionp;
-			}
-			else {
-				reflected.setSize(0.005, 0.5);
-				reflections.push_back(reflected);
-				break;
-			}
-
-		}
-		else {
-			break;
-		}
+		Eigen::Vector3f reflection = reflect(incoming, normalized_normal);
+		std::cout << "reflection: " << reflection << std::endl;
+		Tucano::Shapes::Cylinder reflected = Tucano::Shapes::Cylinder(0.01, 1.0, 16, 64);
+		reflected.resetModelMatrix();
+		reflected.setOriginOrientation(intersectionstruc.point, reflection.normalized());
+		reflected.setSize(0.01, 10);
+		reflections.push_back(reflected);
+		std::cout << reflections[0].getRadius() << std::endl;
+		std::cout << reflections[0].getHeight() << std::endl;
 	}
 
-	for (int i = 0; i < MAX_REFLECT; i++) {
-		if (refractionstruc.intersected) {
-			incoming2 = (refractionstruc.point - previousIntersect2).normalized();
-			normalized_normal2 = refractionstruc.face.normal.normalized();
-			intersectionp2 = refractionstruc.point;
-
-			//refraction = refractionV(incoming, normalized_normal, materials[intersectionstruc.face.material_id].getOpticalDensity()).normalized();
-
-			refraction = refractionV(incoming2, normalized_normal2, 1.4).normalized();
-
-			Tucano::Shapes::Cylinder refracted = Tucano::Shapes::Cylinder(0.005, 1.0, 16, 64);
-			refracted.resetModelMatrix();
-			refracted.resetShapeMatrix();
-			refracted.resetLocations();
-			refracted.reset();
-			refracted.setOriginOrientation(intersectionp2, refraction);
-
-
-			refractionstruc = intersection(refractionstruc.point, refraction);
-			if (refractionstruc.intersected) {
-				refracted.setSize(0.005, (refractionstruc.point - intersectionp2).norm());
-				std::cout << refraction << std::endl;
-				refractions.push_back(refracted);
-				previousIntersect2 = intersectionp2;
-			}
-			else {
-				std::cout << refraction << std::endl;
-				refracted.setSize(0.005, 0.5);
-				refractions.push_back(refracted);
-				break;
-			}
-		}
-		else {
-			break;
-		}
-	}
 	// place the camera representation (frustum) on current camera location, 
 	camerarep.resetModelMatrix();
 	camerarep.setModelMatrix(flycamera.getViewMatrix().inverse());
 }
-
 
 void Flyscene::raytraceScene(int width, int height) {
 	std::cout << "ray tracing ..." << std::endl;
@@ -289,14 +214,12 @@ void Flyscene::raytraceScene(int width, int height) {
 	std::cout << "ray tracing done! " << std::endl;
 	pixel_data.clear();
 }
-}
 
 Eigen::Vector3f  Flyscene::traceRay(Eigen::Vector3f& origin,
 	Eigen::Vector3f& dest) {
 
 	inters_point intersectionstruc = intersection(origin, dest);
-	float shadowratio = shadowRatio(intersectionstruc.point, intersectionstruc.face);
-
+	float shadowratio = shadowRatio(intersectionstruc.point);
 
 	if (intersectionstruc.intersected == true) {
 		//Multiply the rgb value of the pixel by the shadow ratio
@@ -308,26 +231,23 @@ Eigen::Vector3f  Flyscene::traceRay(Eigen::Vector3f& origin,
 
 
 //Calculates the direction of the refraction when the ray is inside the object and outside.
-
-Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f view, Eigen::Vector3f normal, float index) {
+Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f& view, Eigen::Vector3f& normal, float index) {
 
 	float cos = clamp(view.dot(normal), -1.0f, 1.0f);
-	//float cos = view.normalized().dot(normal.normalized());
 	float i = 1;
 	float x = index;
 	Eigen::Vector3f norm = normal;
-    if (cos < 0) {
-		cos = -cos;	
+	if (cos < 0) {
+		cos = -cos;
 	}
 	else {
-		//std::swap(i, x);
+		std::swap(i, x);
 		norm = -normal;
 	}
 
 	float y = i / x;
-	std::cout << "y: " << y << std::endl;
-	float z = 1 - (y * y )* (1 - cos * cos);
-	std::cout << "z: " << z << std::endl;
+
+	float z = 1 - y * y * (1 - cos * cos);
 
 	if (z < 0) {
 		return Eigen::Vector3f(0.0, 0.0, 0.0);
@@ -420,7 +340,6 @@ float Flyscene::clamp(float x, float low, float high) {
 	return x < low ? low : x > high ? high : x;
 }
 
-
 bool Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors, float& alpha, float& beta) {
 	Eigen::Vector3f v0 = vectors[1] - vectors[0];
 	Eigen::Vector3f v1 = vectors[2] - vectors[0];
@@ -440,71 +359,52 @@ bool Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vecto
 	return (beta < 0 || alpha + beta > 1) ? false : true;
 }
 
-Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f incoming, Eigen::Vector3f normal)
+Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f& incoming, Eigen::Vector3f& normal)
 {
 	/*std::cout << "incoming" << incoming << std::endl;
 	std::cout << "normal" << normal << std::endl;*/
 
-	normal.normalize();
-	incoming.normalize();
+	normal.normalized();
 	Eigen::Vector3f reflection = incoming - 2 * (incoming.dot(normal) * normal);
-	return reflection.normalized();
+	return reflection;
 }
 
 Eigen::Vector3f Flyscene::shade(int level, int maxlevel, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face) {
-
-	if (intersection == Eigen::Vector3f()) {
-	return Eigen::Vector3f(0, 0, 0);
-	}
 	if (level <= maxlevel) {
  		return directColor(intersection,ray, face) + reflectColor(level, intersection, ray, face) + refractColor(level, intersection, ray, face);
 	}
 	return directColor(intersection, ray, face);
-
 }
 
 Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tucano::Face face) {
 	//ambient term
-	Eigen::Vector3f ka;
-	Eigen::Vector3f kd;
-	Eigen::Vector3f ks;
-	float shininess;
-
-	if (face.material_id != -1) {
-		ka = materials[face.material_id].getAmbient();
-		kd = materials[face.material_id].getDiffuse();
-		ks = materials[face.material_id].getSpecular();
-		shininess = materials[face.material_id].getShininess();
-	}
-	else {
-		//fallback values to avoid errors for objs without materials
-		ka = Eigen::Vector3f(0, 0, 0);
-		kd = Eigen::Vector3f(1, 0.5, 0);
-		ks = Eigen::Vector3f(0.5, 0.5, 0.5);
-		shininess = 5;
-	}
 	Eigen::Vector3f lightIntensity = Eigen::Vector3f(1.0, 1.0, 1.0);
-
+	Eigen::Vector3f ka = materials[face.material_id].getAmbient();
 	Eigen::Vector3f ambient = lightIntensity.cwiseProduct(ka);
 	//diffuse term
 	Eigen::Vector3f normal = face.normal.normalized();
-	//Eigen::Vector3f lightDirection = (flycamera.getViewMatrix() * -lights[0]).normalized();
-	Eigen::Vector3f lightDir = (lights.back() - p).normalized();
-	float diffuseDot = lightDir.dot(normal);
+	Eigen::Vector3f lightDirection = (flycamera.getViewMatrix() * -lights[0]).normalized();
+	Eigen::Vector3f kd = materials[face.material_id].getDiffuse();
+	float diffuseDot = lightDirection.dot(normal);
 	float diffuseBounded = (diffuseDot > 0.0) ? diffuseDot : 0.0;
 
 	Eigen::Vector3f diffuse = lightIntensity.cwiseProduct(kd) * diffuseBounded;
-
 	//specular term
-	Eigen::Vector3f reflectV = reflect(ray, face.normal.normalized()).normalized();
+	Eigen::Vector3f reflectV = reflect(ray, face.normal);
+	inters_point newIntersection = intersection(p, reflectV - p);
 	Eigen::Vector3f cameraV = flycamera.getCenter() - p;
 	float specularDot = (reflectV.normalized()).dot(cameraV.normalized());
-
+	Eigen::Vector3f ks = materials[face.material_id].getSpecular();
+	float shininess = materials[face.material_id].getShininess();
 	float specularBounded = (specularDot > 0.0) ? specularDot : 0.0;
+	Eigen::Vector3f specular = lightIntensity.cwiseProduct(ks) * pow(specularBounded, shininess);
 
-	Eigen::Vector3f specular = lightIntensity.cwiseProduct(ks) * std::pow(specularBounded, shininess);
+	std::cout << "ambient: " << ambient << std::endl;
+	std::cout << "diffuse: " << diffuse << std::endl;
+	std::cout << "specular: " << specular << std::endl;
+
+
 	return ambient + diffuse + specular;
-	
 }
 
 Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP, Eigen::Vector3f ray, Tucano::Face face) {
@@ -522,53 +422,39 @@ Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP,
 		return specular.cwiseProduct(Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face));
 	}
 	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
+
 }
 
-float Flyscene::shadowRatio(Eigen::Vector3f intersectionP, Tucano::Face face) {
-	
+float Flyscene::shadowRatio(Eigen::Vector3f intersectionP) {
+	//Choose how many rays you want to shoot to light
+	int totalRaysShot = 3;
 	//Counter for how many rays reach the light
 	int raysReachLight = 0;
-	
-		for (int i = 0; i < lights.size(); ++i) {
-			//Each iterations shoots a ray to light
-			if (SOFT_SHADOWS) {
-				for (int j = 0; j < SHADOW_SMOOTHNESS; j++)
-				{
-					//Create two random floats between -0.075 and 0.075
-					//The range will be hardcoded unless we find a way to get the radius of the light
-					double randX = (rand() % 16) / 100 - 0.075;
-					double randY = (rand() % 16) / 100 - 0.075;
-					double randZ = (rand() % 16) / 100 - 0.075;
 
-					Eigen::Vector3f offset = Eigen::Vector3f(randX, randY, randZ);
-
-					//Shoot a ray from hit point to light center shifted by the offset vector
-					inters_point rayToLight = intersection(intersectionP + face.normal * shadowBias, (offset + lights[i]) - intersectionP);
-
-					//See if ray reaches light. Increment counter if it does
-					if (!rayToLight.intersected) {
-						raysReachLight++;
-					}
-				}
-			}
-			else {//Use hard shadows
-				inters_point rayToLight = intersection(intersectionP + face.normal * shadowBias, lights[i] - intersectionP);
-				if (!rayToLight.intersected)
-				{
-					raysReachLight++;
-				}
-			}
-		}
-		if (SOFT_SHADOWS)
+	for (int i = 0; i < lights.size(); ++i) {
+		//Each iterations shoots a ray to light
+		for (int j = 0; j < totalRaysShot; ++j)
 		{
-			return raysReachLight / (SHADOW_SMOOTHNESS * lights.size());
+			//Create two random floats between -0.075 and 0.075
+			//The range will be hardcoded unless we find a way to get the radius of the light
+			float randX = (rand() % 16) / 100 - 0.075;
+			float randY = (rand() % 16) / 100 - 0.075;
+			float randZ = (rand() % 16) / 100 - 0.075;
 
-		}
-		else
-		{
-			return  raysReachLight / lights.size();
+			Eigen::Vector3f offset = Eigen::Vector3f(randX, randY, randZ);
+
+			//Shoot a ray from hit point to light center shifted by the offset vector
+			inters_point rayToLight = intersection(intersectionP, offset + lights[i]);
+
+			//See if ray reaches light. Increment counter if it does
+			if (!rayToLight.intersected)
+			{
+				raysReachLight++;
+			}
 		}
 	}
+	return raysReachLight / (totalRaysShot * lights.size());
+}
 
 Eigen::Vector3f Flyscene::refractColor(int level, Eigen::Vector3f intersectionP, Eigen::Vector3f ray, Tucano::Face face) {
 	Tucano::Material::Mtl current_material = materials[face.material_id];
