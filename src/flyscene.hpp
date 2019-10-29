@@ -19,6 +19,7 @@
 const int MAX_REFLECT = 1;
 const int SHADOW_SMOOTHNESS = 5;
 const bool SOFT_SHADOWS = false;
+const int AMOUNT_FACES = 100;
 
 class Flyscene {
 
@@ -150,7 +151,9 @@ private:
   std::vector<float> makePlanes(std::vector<Tucano::Face> box);
   Eigen::Affine3f shapeModelMatrix;
   
-  std::vector<std::vector<Tucano::Face>> subdivide(Tucano::Mesh mesh);
+  std::vector<std::vector<Tucano::Face>> subdivide();
+  
+  std::vector<std::vector<Tucano::Face>> split(std::vector<float> bounds, std::vector<Tucano::Face> bb, Eigen::Vector4f avg);
 
   /// MTL materials
   vector<Tucano::Material::Mtl> materials;
