@@ -207,7 +207,7 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 
 	for (int i = 0; i < lights.size(); ++i) {
 		//Each iterations shoots a ray to light
-		for (int i = 0; i < totalRaysShot; i++)
+		for (int j = 0; j < totalRaysShot; j++)
 		{
 
 			//Create two random floats between -0.075 and 0.075
