@@ -8,64 +8,65 @@
 //value used to check 
 constexpr float minCheck = 1e-8;
 const Eigen::Vector4f backgroundColor = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
+std::vector<std::vector<Tucano::Face>> bboxes;
 void Flyscene::initialize(int width, int height) {
-  // initiliaze the Phong Shading effect for the Opengl Previewer
-  phong.initialize();
-  
- 
-  // set the camera's projection matrix
-  flycamera.setPerspectiveMatrix(60.0, width / (float)height, 0.1f, 100.0f);
-  flycamera.setViewport(Eigen::Vector2f((float)width, (float)height));
 
-  // load the OBJ file and materials
-  Tucano::MeshImporter::loadObjFile(mesh, materials,
-                                    "resources/models/cube.obj");
+	// initiliaze the Phong Shading effect for the Opengl Previewer
+	phong.initialize();
 
-  // normalize the model (scale to unit cube and center at origin)
-  mesh.normalizeModelMatrix();
+	// set the camera's projection matrix
+	flycamera.setPerspectiveMatrix(60.0, width / (float)height, 0.1f, 100.0f);
+	flycamera.setViewport(Eigen::Vector2f((float)width, (float)height));
 
-  // pass all the materials to the Phong Shader
-  for (int i = 0; i < materials.size(); ++i)
-    phong.addMaterial(materials[i]);
+	// load the OBJ file and materials
+	Tucano::MeshImporter::loadObjFile(mesh, materials,
+		"resources/models/cube.obj");
 
-  // set the color and size of the sphere to represent the light sources
-  // same sphere is used for all sources
-  lightrep.setColor(Eigen::Vector4f(1.0, 1.0, 0.0, 1.0));
-  lightrep.setSize(0.15);
+	// normalize the model (scale to unit cube and center at origin)
+	mesh.normalizeModelMatrix();
+
+	// pass all the materials to the Phong Shader
+	for (int i = 0; i < materials.size(); ++i)
+		phong.addMaterial(materials[i]);
+
+	// set the color and size of the sphere to represent the light sources
+	// same sphere is used for all sources
+	lightrep.setColor(Eigen::Vector4f(1.0, 1.0, 0.0, 1.0));
+	lightrep.setSize(0.15);
+
+	bboxes = subdivide(mesh);
+	// create a first ray-tracing light source at some random position
+	lights.push_back(Eigen::Vector3f(-1.0, 1.0, 1.0));
 
 
-  // create a first ray-tracing light source at some random position
-  lights.push_back(Eigen::Vector3f(-1.0, 1.0, 1.0));
 
+	// scale the camera representation (frustum) for the ray debug
+	camerarep.shapeMatrix()->scale(0.2);
 
+	// the debug ray is a cylinder, set the radius and length of the cylinder
+	ray.setSize(0.005, 10.0);
 
-  // scale the camera representation (frustum) for the ray debug
-  camerarep.shapeMatrix()->scale(0.2);
+	// craete a first debug ray pointing at the center of the screen
+	createDebugRay(Eigen::Vector2f(width / 2.0, height / 2.0));
 
-  // the debug ray is a cylinder, set the radius and length of the cylinder
-  ray.setSize(0.005, 10.0);
+	glEnable(GL_DEPTH_TEST);
 
-  // craete a first debug ray pointing at the center of the screen
-  createDebugRay(Eigen::Vector2f(width / 2.0, height / 2.0));
-
-  glEnable(GL_DEPTH_TEST);
-
-  for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
-	  Tucano::Face face = mesh.getFace(i);
-	  std::cout << face.vertex_ids[0] << std::endl;
-	  std::cout << face.vertex_ids[1] << std::endl;
-	  std::cout << face.vertex_ids[2] << std::endl;
-  }
-  // for (int i = 0; i<mesh.getNumberOfFaces(); ++i){
-  //   Tucano::Face face = mesh.getFace(i);    
-  //   for (int j =0; j<face.vertex_ids.size(); ++j){
-  //     std::cout<<"vid "<<j<<" "<<face.vertex_ids[j]<<std::endl;
-  //     std::cout<<"vertex "<<mesh.getVertex(face.vertex_ids[j]).transpose()<<std::endl;
-  //     std::cout<<"normal "<<mesh.getNormal(face.vertex_ids[j]).transpose()<<std::endl;
-  //   }
-  //   std::cout<<"mat id "<<face.material_id<<std::endl<<std::endl;
-  //   std::cout<<"face   normal "<<face.normal.transpose() << std::endl << std::endl;
-  // }
+	for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
+		Tucano::Face face = mesh.getFace(i);
+		std::cout << face.vertex_ids[0] << std::endl;
+		std::cout << face.vertex_ids[1] << std::endl;
+		std::cout << face.vertex_ids[2] << std::endl;
+	}
+	// for (int i = 0; i<mesh.getNumberOfFaces(); ++i){
+	//   Tucano::Face face = mesh.getFace(i);    
+	//   for (int j =0; j<face.vertex_ids.size(); ++j){
+	//     std::cout<<"vid "<<j<<" "<<face.vertex_ids[j]<<std::endl;
+	//     std::cout<<"vertex "<<mesh.getVertex(face.vertex_ids[j]).transpose()<<std::endl;
+	//     std::cout<<"normal "<<mesh.getNormal(face.vertex_ids[j]).transpose()<<std::endl;
+	//   }
+	//   std::cout<<"mat id "<<face.material_id<<std::endl<<std::endl;
+	//   std::cout<<"face   normal "<<face.normal.transpose() << std::endl << std::endl;
+	// }
 
 
 }
@@ -75,139 +76,139 @@ void Flyscene::initialize(int width, int height) {
 
 void Flyscene::paintGL(void) {
 
-  // update the camera view matrix with the last mouse interactions
-  flycamera.updateViewMatrix();
-  Eigen::Vector4f viewport = flycamera.getViewport();
-  
-  // clear the screen and set background color
-  glClearColor(backgroundColor.x(), backgroundColor.y(), backgroundColor.z(), backgroundColor.w());
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// update the camera view matrix with the last mouse interactions
+	flycamera.updateViewMatrix();
+	Eigen::Vector4f viewport = flycamera.getViewport();
 
-  // position the scene light at the last ray-tracing light source
-  scene_light.resetViewMatrix();
-  scene_light.viewMatrix()->translate(-lights.back());
+	// clear the screen and set background color
+	glClearColor(backgroundColor.x(), backgroundColor.y(), backgroundColor.z(), backgroundColor.w());
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  // render the scene using OpenGL and one light source
-  
+	// position the scene light at the last ray-tracing light source
+	scene_light.resetViewMatrix();
+	scene_light.viewMatrix()->translate(-lights.back());
+
+	// render the scene using OpenGL and one light source
+
 
 	phong.render(mesh, flycamera, scene_light);
 
-  // render the ray and camera representation for ray debug
-  ray.render(flycamera, scene_light);
-  camerarep.render(flycamera, scene_light);
-                  
-  //render reflections
-  for (int i = 0; i < reflections.size(); i++) {
-	  reflections[i].render(flycamera, scene_light);
-  }
+	// render the ray and camera representation for ray debug
+	ray.render(flycamera, scene_light);
+	camerarep.render(flycamera, scene_light);
 
-  // render ray tracing light sources as yellow spheres
-  for (int i = 0; i < lights.size(); ++i) {
-    lightrep.resetModelMatrix();
-    lightrep.modelMatrix()->translate(lights[i]);
-    lightrep.render(flycamera, scene_light);
-  }
+	//render reflections
+	for (int i = 0; i < reflections.size(); i++) {
+		reflections[i].render(flycamera, scene_light);
+	}
 
-  // render coordinate system at lower right corner
-  flycamera.renderAtCorner();
+	// render ray tracing light sources as yellow spheres
+	for (int i = 0; i < lights.size(); ++i) {
+		lightrep.resetModelMatrix();
+		lightrep.modelMatrix()->translate(lights[i]);
+		lightrep.render(flycamera, scene_light);
+	}
+
+	// render coordinate system at lower right corner
+	flycamera.renderAtCorner();
 }
 
-void Flyscene::simulate(GLFWwindow *window) {
-  // Update the camera.
-  // NOTE(mickvangelderen): GLFW 3.2 has a problem on ubuntu where some key
-  // events are repeated: https://github.com/glfw/glfw/issues/747. Sucks.
-  float dx = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 1.0 : 0.0) -
-             (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 1.0 : 0.0);
-  float dy = (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS ||
-                      glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS
-                  ? 1.0
-                  : 0.0) -
-             (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS ||
-                      glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS
-                  ? 1.0
-                  : 0.0);
-  float dz = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 1.0 : 0.0) -
-             (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 1.0 : 0.0);
-  flycamera.translate(dx, dy, dz);
+void Flyscene::simulate(GLFWwindow* window) {
+	// Update the camera.
+	// NOTE(mickvangelderen): GLFW 3.2 has a problem on ubuntu where some key
+	// events are repeated: https://github.com/glfw/glfw/issues/747. Sucks.
+	float dx = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 1.0 : 0.0) -
+		(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 1.0 : 0.0);
+	float dy = (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS ||
+		glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS
+		? 1.0
+		: 0.0) -
+		(glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS ||
+			glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS
+			? 1.0
+			: 0.0);
+	float dz = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 1.0 : 0.0) -
+		(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 1.0 : 0.0);
+	flycamera.translate(dx, dy, dz);
 }
 
-void Flyscene::createDebugRay(const Eigen::Vector2f &mouse_pos) {
-  ray.resetModelMatrix();
-  // from pixel position to world coordinates
-  Eigen::Vector3f screen_pos = flycamera.screenToWorld(mouse_pos);
+void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
+	ray.resetModelMatrix();
+	// from pixel position to world coordinates
+	Eigen::Vector3f screen_pos = flycamera.screenToWorld(mouse_pos);
 
-  // direction from camera center to click position
-  Eigen::Vector3f dir = (screen_pos - flycamera.getCenter()).normalized();
-  Eigen::Vector3f origin = flycamera.getCenter();
+	// direction from camera center to click position
+	Eigen::Vector3f dir = (screen_pos - flycamera.getCenter()).normalized();
+	Eigen::Vector3f origin = flycamera.getCenter();
 
-  //calculate intersection point with scene(closest intersection found)
-  inters_point intersectionstruc = intersection(origin, screen_pos);
-  std::cout << "intersection after struct: " << intersectionstruc.point << std::endl;
-  std::cout << "normal after struct: " << intersectionstruc.face.normal << std::endl;
+	//calculate intersection point with scene(closest intersection found)
+	inters_point intersectionstruc = intersection(origin, screen_pos);
+	std::cout << "intersection after struct: " << intersectionstruc.point << std::endl;
+	std::cout << "normal after struct: " << intersectionstruc.face.normal << std::endl;
 
-  //if intersection is the infinite vector, the ray intersects with no triangle
-  ray.setOriginOrientation(flycamera.getCenter(), dir);
-  if (intersectionstruc.intersected) {
-	  float height = (intersectionstruc.point - flycamera.getCenter()).norm();
-	  ray.setSize(0.01, height);
-  }
+	//if intersection is the infinite vector, the ray intersects with no triangle
+	ray.setOriginOrientation(flycamera.getCenter(), dir);
+	if (intersectionstruc.intersected) {
+		float height = (intersectionstruc.point - flycamera.getCenter()).norm();
+		ray.setSize(0.01, height);
+	}
 
-  //calculate reflection ray and draw it
-  //reset reflections again
-  reflections.clear();
-  if (intersectionstruc.intersected) {
-	  Eigen::Vector3f incoming = intersectionstruc.point - flycamera.getCenter();
+	//calculate reflection ray and draw it
+	//reset reflections again
+	reflections.clear();
+	if (intersectionstruc.intersected) {
+		Eigen::Vector3f incoming = intersectionstruc.point - flycamera.getCenter();
 
-	  Eigen::Vector3f normalized_normal = intersectionstruc.face.normal.normalized();
+		Eigen::Vector3f normalized_normal = intersectionstruc.face.normal.normalized();
 
-	  Eigen::Vector3f reflection = reflect(incoming, normalized_normal);
-	  std::cout << "reflection: " << reflection << std::endl;
-	  Tucano::Shapes::Cylinder reflected = Tucano::Shapes::Cylinder(0.01, 1.0, 16, 64);
-	  reflected.resetModelMatrix();
-	  reflected.setOriginOrientation(intersectionstruc.point, reflection.normalized());
-	  reflected.setSize(0.01, 10);
-	  reflections.push_back(reflected);
-	  std::cout << reflections[0].getRadius() << std::endl;
-	  std::cout << reflections[0].getHeight() << std::endl;
-  }
- 
-  // place the camera representation (frustum) on current camera location, 
-  camerarep.resetModelMatrix();
-  camerarep.setModelMatrix(flycamera.getViewMatrix().inverse());
+		Eigen::Vector3f reflection = reflect(incoming, normalized_normal);
+		std::cout << "reflection: " << reflection << std::endl;
+		Tucano::Shapes::Cylinder reflected = Tucano::Shapes::Cylinder(0.01, 1.0, 16, 64);
+		reflected.resetModelMatrix();
+		reflected.setOriginOrientation(intersectionstruc.point, reflection.normalized());
+		reflected.setSize(0.01, 10);
+		reflections.push_back(reflected);
+		std::cout << reflections[0].getRadius() << std::endl;
+		std::cout << reflections[0].getHeight() << std::endl;
+	}
+
+	// place the camera representation (frustum) on current camera location, 
+	camerarep.resetModelMatrix();
+	camerarep.setModelMatrix(flycamera.getViewMatrix().inverse());
 }
 
 void Flyscene::raytraceScene(int width, int height) {
-  std::cout << "ray tracing ..." << std::endl;
+	std::cout << "ray tracing ..." << std::endl;
 
-  // if no width or height passed, use dimensions of current viewport
-  Eigen::Vector2i image_size(width, height);
-  if (width == 0 || height == 0) {
-    image_size = flycamera.getViewportSize();
-  }
+	// if no width or height passed, use dimensions of current viewport
+	Eigen::Vector2i image_size(width, height);
+	if (width == 0 || height == 0) {
+		image_size = flycamera.getViewportSize();
+	}
 
-  // create 2d vector to hold pixel colors and resize to match image size
-  vector<vector<Eigen::Vector3f>> pixel_data;
-  pixel_data.resize(image_size[1]);
-  for (int i = 0; i < image_size[1]; ++i)
-    pixel_data[i].resize(image_size[0]);
+	// create 2d vector to hold pixel colors and resize to match image size
+	vector<vector<Eigen::Vector3f>> pixel_data;
+	pixel_data.resize(image_size[1]);
+	for (int i = 0; i < image_size[1]; ++i)
+		pixel_data[i].resize(image_size[0]);
 
-  // origin of the ray is always the camera center
-  Eigen::Vector3f origin = flycamera.getCenter();
-  Eigen::Vector3f screen_coords;
+	// origin of the ray is always the camera center
+	Eigen::Vector3f origin = flycamera.getCenter();
+	Eigen::Vector3f screen_coords;
 
-  // for every pixel shoot a ray from the origin through the pixel coords
-  for (int j = 0; j < image_size[1]; ++j) {
-    for (int i = 0; i < image_size[0]; ++i) {
-      // create a ray from the camera passing through the pixel (i,j)
-      screen_coords = flycamera.screenToWorld(Eigen::Vector2f(i, j));
-      // launch raytracing for the given ray and write result to pixel data
-      pixel_data[i][j] = traceRay(origin, screen_coords);
-    }
-  }
+	// for every pixel shoot a ray from the origin through the pixel coords
+	for (int j = 0; j < image_size[1]; ++j) {
+		for (int i = 0; i < image_size[0]; ++i) {
+			// create a ray from the camera passing through the pixel (i,j)
+			screen_coords = flycamera.screenToWorld(Eigen::Vector2f(i, j));
+			// launch raytracing for the given ray and write result to pixel data
+			pixel_data[i][j] = traceRay(origin, screen_coords);
+		}
+	}
 
-  // write the ray tracing result to a PPM image
-  Tucano::ImageImporter::writePPMImage("result.ppm", pixel_data);
-  std::cout << "ray tracing done! " << std::endl;
+	// write the ray tracing result to a PPM image
+	Tucano::ImageImporter::writePPMImage("result.ppm", pixel_data);
+	std::cout << "ray tracing done! " << std::endl;
 }
 
 
@@ -227,7 +228,7 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 		//Create two random floats between -0.075 and 0.075
 		//The range will be hardcoded unless we find a way to get the radius of the light
 		float randX = (rand() % 16) / 100 - 0.075;
-		float randY = (rand() % 16) / 100 -0.075;
+		float randY = (rand() % 16) / 100 - 0.075;
 		float randZ = (rand() % 16) / 100 - 0.075;
 
 		Eigen::Vector3f offset = Eigen::Vector3f(randX, randY, randZ);
@@ -252,7 +253,7 @@ Eigen::Vector3f Flyscene::traceRay(Eigen::Vector3f& origin,
 
 //Calculates the direction of the refraction when the ray is inside the object and outside.
 Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f& view, Eigen::Vector3f& normal, float& index) {
-	
+
 	float cos = clamp(view.dot(normal), -1.0f, 1.0f);
 	float i = 1;
 	float x = index;
@@ -286,15 +287,18 @@ Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f& view, Eigen::Vector3f& no
 
 Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 	Eigen::Vector3f dest) {
-	std::vector<std::vector<Tucano::Face>> bboxes = subdivide(mesh);
-
 	
+
+	std::vector<float> boxts;
+	std::vector<Eigen::Vector3f> directionsb;
+	std::vector<Eigen::Vector3f> normalsb;
+	std::vector<Tucano::Face> facesb;
 	for (int i = 0; i < bboxes.size(); i++) {
 		std::vector<Tucano::Face> box = bboxes[i];
 		std::vector<float> myCoords = makePlanes(box);
 		std::vector<float> intersPoints;
-		
-		cout << "AICI " << myCoords[0] << " " << myCoords[1] << " " << myCoords[2] << " " << myCoords[3] << " " << myCoords[4] << " " << myCoords[5] <<endl;
+
+		//cout << "AICI " << myCoords[0] << " " << myCoords[1] << " " << myCoords[2] << " " << myCoords[3] << " " << myCoords[4] << " " << myCoords[5] << endl;
 
 		Eigen::Vector3f d = dest - origin;
 		float txmin = (myCoords[0] - origin.x()) / d.x();
@@ -313,18 +317,18 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 
 		float tin = 0;
 		float tout = 0;
-		if (tinx > tiny&& tinx > tinz)
+		if (tinx > tiny && tinx > tinz)
 			tin = tinx;
-		else if (tiny > tinx&& tiny > tinz)
+		else if (tiny > tinx && tiny > tinz)
 			tin = tiny;
-		else if (tinz > tinx&& tinz > tiny)
+		else if (tinz > tinx && tinz > tiny)
 			tin = tinz;
 
-		if (tinx < tiny&& tinx < tinz)
+		if (tinx < tiny && tinx < tinz)
 			tout = tinx;
-		else if (tiny < tinx&& tiny < tinz)
+		else if (tiny < tinx && tiny < tinz)
 			tout = tiny;
-		else if (tinz < tinx&& tinz < tiny)
+		else if (tinz < tinx && tinz < tiny)
 			tout = tinz;
 
 		/// if the ray hits our box
@@ -400,7 +404,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 				}
 			}
 			if (ts.size() == 0) {
-				return Flyscene::inters_point{ false, Eigen::Vector3f(), Tucano::Face() };
+				//return Flyscene::inters_point{ false, Eigen::Vector3f(), Tucano::Face() };
+				continue;
 			}
 			else {
 				//calc correct intersection point(closest to the camera)
@@ -414,13 +419,32 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 				std::cout << "intersection point before struct: " << origin + min * direction << std::endl;*/
 				Eigen::Vector3f point = origin + min * direction;
 				Tucano::Face face = faces[index];
-				return Flyscene::inters_point{ true, point, face };
+				//return Flyscene::inters_point{ true, point, face };
+				boxts.push_back(ts[index]);
+				directionsb.push_back(direction);
+				facesb.push_back(face);
 			}
 		}
 		else
-			return Flyscene::inters_point{ false, Eigen::Vector3f(), Tucano::Face() };
+			//return Flyscene::inters_point{ false, Eigen::Vector3f(), Tucano::Face() };
+			continue;
 
 	}
+
+	if (boxts.size() == 0) {
+		return Flyscene::inters_point{ false, Eigen::Vector3f(), Tucano::Face() };
+	}
+	float min = *std::min_element(boxts.begin(), boxts.end());
+	std::vector<float>::iterator indexit = std::find(boxts.begin(), boxts.end(), min);
+	float index = indexit - boxts.begin();
+	//get material of corresponding face
+	Eigen::Vector3f direction = directionsb[index];
+	//get normalv
+	/*std::cout << "normal before struct: " << normals[index] << std::endl;
+	std::cout << "intersection point before struct: " << origin + min * direction << std::endl;*/
+	Eigen::Vector3f point = origin + min * direction;
+	Tucano::Face face = facesb[index];
+	return Flyscene::inters_point{ true, point, face };
 	//Eigen::Vector3f intersectionv;
 	//std::vector<float> ts;
 	//std::vector<Eigen::Vector3f> directions;
@@ -515,7 +539,7 @@ float Flyscene::clamp(float x, float low, float high) {
 }
 
 
-void Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors, float &alpha, float &beta) {
+void Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors, float& alpha, float& beta) {
 	Eigen::Vector3f v0 = vectors[1] - vectors[0];
 	Eigen::Vector3f v1 = vectors[2] - vectors[0];
 	Eigen::Vector3f v2 = p - vectors[0];
@@ -541,11 +565,11 @@ Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f& incoming, Eigen::Vector3f& no
 	return reflection;
 }
 
-Eigen::Vector3f Flyscene::shade(int level,int maxlevel, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face) {
+Eigen::Vector3f Flyscene::shade(int level, int maxlevel, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face) {
 	if (level <= maxlevel) {
-		return directColor(intersection,ray, face) + reflectColor(level, intersection, ray, face);
+		return directColor(intersection, ray, face) + reflectColor(level, intersection, ray, face);
 	}
-	return directColor(intersection,ray, face);
+	return directColor(intersection, ray, face);
 }
 
 Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tucano::Face face) {
@@ -594,7 +618,7 @@ Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP,
 
 
 std::vector<float> Flyscene::makePlanes(std::vector<Tucano::Face> box) {
-		
+
 	std::vector<Eigen::Vector4f> vertices;
 
 	for (int x = 0; x < box.size(); x++) {
@@ -607,7 +631,7 @@ std::vector<float> Flyscene::makePlanes(std::vector<Tucano::Face> box) {
 		}
 
 	}
-		
+
 	Eigen::Vector4f firstVertex = vertices[0];
 	float xmax = firstVertex.x();
 	float xmin = firstVertex.x();
@@ -641,7 +665,7 @@ std::vector<float> Flyscene::makePlanes(std::vector<Tucano::Face> box) {
 std::vector<std::vector<Tucano::Face>> Flyscene::subdivide(Tucano::Mesh mesh) {
 	std::vector<Tucano::Face> bb;
 	std::vector<std::vector<Tucano::Face>> bb2;
-	
+
 	float capacity = 10;
 	float totalFaces = 0;
 	for (int i = 0; i < mesh.getNumberOfFaces(); i++) {
@@ -653,29 +677,37 @@ std::vector<std::vector<Tucano::Face>> Flyscene::subdivide(Tucano::Mesh mesh) {
 
 	float maxval = totalFaces;
 
-	if (totalFaces < capacity){
-		 bb2.push_back(bb);
-		 return bb2;
+	if (totalFaces < capacity) {
+		bb2.push_back(bb);
+		return bb2;
 	}
 
 	while (totalFaces > capacity) {
 		float check = 0;
-		while (!bb.empty())
-			bb.pop_back();
 
 		totalFaces /= 2;
-		float temp = totalFaces;
 		for (int i = 0; i < totalFaces; i++) {
 			bb.push_back(mesh.getFace(i));
 		}
+		bb2.push_back(bb);
+		bb.clear();
+		check += totalFaces;
 		while (check < maxval) {
+			for (int i = check; i < check + totalFaces; i++) {
+				bb.push_back(mesh.getFace(i));
+			}
 			bb2.push_back(bb);
 			check += totalFaces;
+			bb.clear();
+
+			//totalFaces = temp;
+			//std::vector <Tucano::Face> ideal_bb_size = bb2.back;
+
 		}
-		totalFaces = temp;
-		//std::vector <Tucano::Face> ideal_bb_size = bb2.back;
+		if (totalFaces > capacity) {
+			bb2.clear();
+		}
 
 	}
-
 	return bb2;
 }
