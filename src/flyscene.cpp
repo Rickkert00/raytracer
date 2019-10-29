@@ -173,7 +173,6 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 					   
 			reflection = reflect(incoming, normalized_normal).normalized();
 			
-
 			Tucano::Shapes::Cylinder reflected = Tucano::Shapes::Cylinder(0.005, 1.0, 16, 64);
 			reflected.resetModelMatrix();
 			reflected.resetShapeMatrix();
@@ -181,7 +180,7 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 			reflected.reset();
 			reflected.setOriginOrientation(intersectionp, reflection);
 
-			intersectionstruc = intersection(intersectionstruc.point, reflection);
+			intersectionstruc = intersection(intersectionstruc.point, intersectionstruc.point + reflection);
 			if (intersectionstruc.intersected) {
 				reflected.setSize(0.005, (intersectionstruc.point - intersectionp).norm());
 				reflections.push_back(reflected);
@@ -199,42 +198,42 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 		}
 	}
 
-	//for (int i = 0; i < MAX_REFLECT; i++) {
-	//	if (refractionstruc.intersected) {
-	//		incoming2 = (refractionstruc.point - previousIntersect2).normalized();
-	//		normalized_normal2 = refractionstruc.face.normal.normalized();
-	//		intersectionp2 = refractionstruc.point;
+	for (int i = 0; i < MAX_REFLECT; i++) {
+		if (refractionstruc.intersected) {
+			incoming2 = (refractionstruc.point - previousIntersect2).normalized();
+			normalized_normal2 = refractionstruc.face.normal.normalized();
+			intersectionp2 = refractionstruc.point;
 
-	//		//refraction = refractionV(incoming, normalized_normal, materials[intersectionstruc.face.material_id].getOpticalDensity()).normalized();
+			//refraction = refractionV(incoming, normalized_normal, materials[intersectionstruc.face.material_id].getOpticalDensity()).normalized();
 
-	//		refraction = refractionV(incoming2, normalized_normal2, 1.4).normalized();
+			refraction = refractionV(incoming2, normalized_normal2, 1.4).normalized();
 
-	//		Tucano::Shapes::Cylinder refracted = Tucano::Shapes::Cylinder(0.005, 1.0, 16, 64);
-	//		refracted.resetModelMatrix();
-	//		refracted.resetShapeMatrix();
-	//		refracted.resetLocations();
-	//		refracted.reset();
-	//		refracted.setOriginOrientation(intersectionp2, refraction);
+			Tucano::Shapes::Cylinder refracted = Tucano::Shapes::Cylinder(0.005, 1.0, 16, 64);
+			refracted.resetModelMatrix();
+			refracted.resetShapeMatrix();
+			refracted.resetLocations();
+			refracted.reset();
+			refracted.setOriginOrientation(intersectionp2, refraction);
 
 
-	//		refractionstruc = intersection(refractionstruc.point, refraction);
-	//		if (refractionstruc.intersected) {
-	//			refracted.setSize(0.005, (refractionstruc.point - intersectionp2).norm());
-	//			//std::cout << refraction << std::endl;
-	//			refractions.push_back(refracted);
-	//			previousIntersect2 = intersectionp2;
-	//		}
-	//		else {
-	//			//std::cout << refraction << std::endl;
-	//			refracted.setSize(0.005, 0.5);
-	//			refractions.push_back(refracted);
-	//			break;
-	//		}
-	//	}
-	//	else {
-	//		break;
-	//	}
-	//}
+			refractionstruc = intersection(refractionstruc.point, refractionstruc.point + refraction);
+			if (refractionstruc.intersected) {
+				refracted.setSize(0.005, (refractionstruc.point - intersectionp2).norm());
+				//std::cout << refraction << std::endl;
+				refractions.push_back(refracted);
+				previousIntersect2 = intersectionp2;
+			}
+			else {
+				//std::cout << refraction << std::endl;
+				refracted.setSize(0.005, 0.5);
+				refractions.push_back(refracted);
+				break;
+			}
+		}
+		else {
+			break;
+		}
+	}
 	// place the camera representation (frustum) on current camera location, 
 	camerarep.resetModelMatrix();
 	camerarep.setModelMatrix(flycamera.getViewMatrix().inverse());
