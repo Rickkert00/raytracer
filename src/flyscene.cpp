@@ -146,7 +146,7 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 		float height = (intersectionstruc.point - flycamera.getCenter()).norm();
 		ray.setSize(0.005, height);
 	}
-	std::cout << intersectionstruc.intersected << std::endl;
+	//std::cout << intersectionstruc.intersected << std::endl;
 
 	//calculate reflection ray and draw it
 	//reset reflections again
@@ -324,9 +324,9 @@ Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f view, Eigen::Vector3f norm
 	}
 
 	float y = i / x;
-	std::cout << "y: " << y << std::endl;
+	//std::cout << "y: " << y << std::endl;
 	float z = 1 - (y * y) * (1 - cos * cos);
-	std::cout << "z: " << z << std::endl;
+	//std::cout << "z: " << z << std::endl;
 
 	if (z < 0) {
 		return Eigen::Vector3f(0.0, 0.0, 0.0);
@@ -357,7 +357,7 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 
 		//cout << "AICI " << myCoords[0] << " " << myCoords[1] << " " << myCoords[2] << " " << myCoords[3] << " " << myCoords[4] << " " << myCoords[5] << endl;
 
-		Eigen::Vector3f d = dest - origin;
+		Eigen::Vector3f d = (dest - origin).normalized();
 		float txmin = (myCoords[0] - origin.x()) / d.x();
 		float tymin = (myCoords[1] - origin.y()) / d.y();
 		float tzmin = (myCoords[2] - origin.z()) / d.z();
@@ -365,6 +365,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		float tymax = (myCoords[4] - origin.y()) / d.y();
 		float tzmax = (myCoords[5] - origin.z()) / d.z();
 
+		std::cout << "txmin: " << txmin << endl;
+		cout << "txmax: " << txmax << endl;
 		float tinx = txmin < txmax ? txmin : txmax;
 		float toutx = txmin > txmax ? txmin : txmax;
 		float tiny = tymin < tymax ? tymin : tymax;
@@ -372,24 +374,26 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		float tinz = tzmin < tzmax ? tzmin : tzmax;
 		float toutz = tzmin > tzmax ? tzmin : tzmax;
 
+
 		float tin = 0;
 		float tout = 0;
-		if (tinx > tiny && tinx > tinz)
+		if (tinx >= tiny && tinx >= tinz)
 			tin = tinx;
-		else if (tiny > tinx && tiny > tinz)
+		else if (tiny >= tinx && tiny >= tinz)
 			tin = tiny;
-		else if (tinz > tinx && tinz > tiny)
+		else if (tinz >= tinx && tinz >= tiny)
 			tin = tinz;
 
-		if (tinx < tiny && tinx < tinz)
-			tout = tinx;
-		else if (tiny < tinx && tiny < tinz)
-			tout = tiny;
-		else if (tinz < tinx && tinz < tiny)
-			tout = tinz;
+		if (toutx <= touty && toutx <= toutz)
+			tout = toutx;
+		else if (touty <= toutx && touty <= toutz)
+			tout = touty;
+		else if (toutz <= toutx && toutz <= touty)
+			tout = toutz;
 
 		/// if the ray hits our box
 		if (!(tin > tout || tout < 0)) {
+			cout << "hit" << endl;
 			Eigen::Vector3f intersectionv;
 			std::vector<float> ts;
 			std::vector<Eigen::Vector3f> directions;
@@ -487,8 +491,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 			//return Flyscene::inters_point{ false, Eigen::Vector3f(), Tucano::Face() };
 			continue;
 		}
-		}
 
+	}
 
 
 
@@ -700,6 +704,27 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 	}
 
+	Eigen::Vector3f Flyscene::refractColor(int level, Eigen::Vector3f intersectionP, Eigen::Vector3f ray, Tucano::Face face) {
+		Tucano::Material::Mtl current_material = materials[face.material_id];
+		float index = current_material.getOpticalDensity();
+		float transparency = current_material.getDissolveFactor();
+		Eigen::Vector3f specular = current_material.getSpecular();
+		Eigen::Vector3f refractV = refractionV(ray, face.normal, index);
+		inters_point newIntersection = intersection(intersectionP, refractV - intersectionP);
+
+		if (newIntersection.intersected == false)
+		{
+			return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
+		}
+
+		if (transparency != 1.0)
+		{
+			return (Eigen::Vector3f(1, 1, 1) - specular).cwiseProduct(Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face));
+		}
+		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
+
+	}
+
 	std::vector<float> Flyscene::makePlanes(std::vector<Tucano::Face> box) {
 
 		std::vector<Eigen::Vector4f> vertices;
@@ -709,7 +734,7 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 
 			for (int z = 0; z < 3; z++) {
 
-				vertices.push_back(mesh.getVertex(face.vertex_ids[z]));
+				vertices.push_back(mesh.getShapeModelMatrix() * mesh.getVertex(face.vertex_ids[z]));
 
 			}
 
