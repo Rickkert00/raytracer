@@ -102,8 +102,6 @@ Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
   Eigen::Vector3f reflect(Eigen::Vector3f incoming,
 	  Eigen::Vector3f normal);
 
-  Eigen::Vector3f refractColor(int level, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face);
-
   Eigen::Vector3f shade(int level, int maxlevel, Eigen::Vector3f p,Eigen::Vector3f ray, Tucano::Face face);
 
   Eigen::Vector3f directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tucano::Face face);
