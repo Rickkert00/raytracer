@@ -325,11 +325,10 @@ Eigen::Vector3f Flyscene::refractionV(Eigen::Vector3f view, Eigen::Vector3f norm
 	float z = 1 - y * y * (1 - cos * cos);
 
 	if (z < 0) {
-		std::cout << "test " << std::endl;
 		return Eigen::Vector3f(0.0, 0.0, 0.0);
 	}
 	else {
-		return (y * view - cos * norm) - norm * sqrtf(z);
+		return y * (view - cos * norm) - norm * sqrtf(z);
 	}
 
 
@@ -452,7 +451,7 @@ Eigen::Vector3f Flyscene::shade(int level, int maxlevel, Eigen::Vector3f interse
 		return directColor(intersection,ray, face) + reflectColor(level, intersection, ray, face);
 	}
 	
-	//return directColor(intersection, ray, face);
+	return directColor(intersection, ray, face);
 
 }
 
