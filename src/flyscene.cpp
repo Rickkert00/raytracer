@@ -17,6 +17,7 @@ double shadowBias = 1e-4;
 double reflectBias = 1e-2;
 int pixel = 0;
 int percentage = 0;
+std::vector<Tucano::Shapes::Box> allBoxes;
 
 void Flyscene::initialize(int width, int height) {
 	// initiliaze the Phong Shading effect for the Opengl Previewer
@@ -49,6 +50,7 @@ void Flyscene::initialize(int width, int height) {
 	bboxes = subdivide();
 	int sum = 0;
 	int numberOfFaces = mesh.getNumberOfFaces();
+	
 	cout << "number of boxes: "<< bboxes.size()<<endl;
 	//for (int i = 0; i < bboxes.size(); i++) {
 	//	std::vector<Tucano::Face> box = bboxes[i];
@@ -127,7 +129,9 @@ void Flyscene::paintGL(void) {
 		scene_light.viewMatrix()->translate(-lights.back());
 	}
 	
-
+	for (int i = 0; i < allBoxes.size(); ++i) {
+		allBoxes[i].render(flycamera, scene_light);
+	}
 
 	//for (int i = 0; i < 100; i++)
 		//cout << mesh.getVertexColor(0);
@@ -228,66 +232,66 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 	Eigen::Vector3f normalized_normal2 = intersectionstruc.face.normal.normalized();
 	inters_point refractionstruc = intersectionstruc;
 	Eigen::Vector3f previousIntersect2 = flycamera.getCenter();
-	for (int i = 0; i < MAX_REFLECT; i++) {
-		if (intersectionstruc.intersected) {
-			incoming = (intersectionstruc.point - previousIntersect).normalized();
-			normalized_normal = intersectionstruc.face.normal.normalized();
-			intersectionp = intersectionstruc.point;
+	//for (int i = 0; i < MAX_REFLECT; i++) {
+	//	if (intersectionstruc.intersected) {
+	//		incoming = (intersectionstruc.point - previousIntersect).normalized();
+	//		normalized_normal = intersectionstruc.face.normal.normalized();
+	//		intersectionp = intersectionstruc.point;
 
-			reflection = reflect(incoming, normalized_normal).normalized();
+	//		reflection = reflect(incoming, normalized_normal).normalized();
 
-			Tucano::Shapes::Cylinder reflected = Tucano::Shapes::Cylinder(0.005, 1.0, 16, 64);
-			reflected.resetModelMatrix();
-			reflected.resetShapeMatrix();
-			reflected.resetLocations();
-			reflected.reset();
-			reflected.setOriginOrientation(intersectionp, reflection);
+	//		Tucano::Shapes::Cylinder reflected = Tucano::Shapes::Cylinder(0.005, 1.0, 16, 64);
+	//		reflected.resetModelMatrix();
+	//		reflected.resetShapeMatrix();
+	//		reflected.resetLocations();
+	//		reflected.reset();
+	//		reflected.setOriginOrientation(intersectionp, reflection);
 
-			intersectionstruc = intersection(intersectionstruc.point, intersectionstruc.point + reflection);
-			if (intersectionstruc.intersected) {
-				reflected.setSize(0.005, (intersectionstruc.point - intersectionp).norm());
-				reflections.push_back(reflected);
-				previousIntersect = intersectionp;
-			}
-			else {
-				reflected.setSize(0.005, 10);
-				reflections.push_back(reflected);
-				break;
-			}
+	//		intersectionstruc = intersection(intersectionstruc.point, intersectionstruc.point + reflection);
+	//		if (intersectionstruc.intersected) {
+	//			reflected.setSize(0.005, (intersectionstruc.point - intersectionp).norm());
+	//			reflections.push_back(reflected);
+	//			previousIntersect = intersectionp;
+	//		}
+	//		else {
+	//			reflected.setSize(0.005, 10);
+	//			reflections.push_back(reflected);
+	//			break;
+	//		}
 
-	//insert reflection rays
-	//std::cout << shadowRatio(intersectionstruc.point, intersectionstruc.face) << std::endl;
-		}
-	}
-	for (int i = 0; i < MAX_REFLECT; i++) {
-		if (refractionstruc.intersected) {
-			incoming2 = (refractionstruc.point - previousIntersect2).normalized();
-			normalized_normal2 = refractionstruc.face.normal.normalized();
-			intersectionp2 = refractionstruc.point;
-			refraction = refractionV(incoming2, normalized_normal2, 1.4).normalized();
-			Tucano::Shapes::Cylinder refracted = Tucano::Shapes::Cylinder(0.005, 1.0, 16, 64);
-			refracted.resetModelMatrix();
-			refracted.resetShapeMatrix();
-			refracted.resetLocations();
-			refracted.reset();
-			refracted.setOriginOrientation(intersectionp2, refraction);
+	////insert reflection rays
+	////std::cout << shadowRatio(intersectionstruc.point, intersectionstruc.face) << std::endl;
+	//	}
+	//}
+	//for (int i = 0; i < MAX_REFLECT; i++) {
+	//	if (refractionstruc.intersected) {
+	//		incoming2 = (refractionstruc.point - previousIntersect2).normalized();
+	//		normalized_normal2 = refractionstruc.face.normal.normalized();
+	//		intersectionp2 = refractionstruc.point;
+	//		refraction = refractionV(incoming2, normalized_normal2, 1.4).normalized();
+	//		Tucano::Shapes::Cylinder refracted = Tucano::Shapes::Cylinder(0.005, 1.0, 16, 64);
+	//		refracted.resetModelMatrix();
+	//		refracted.resetShapeMatrix();
+	//		refracted.resetLocations();
+	//		refracted.reset();
+	//		refracted.setOriginOrientation(intersectionp2, refraction);
 
 
-			refractionstruc = intersection(refractionstruc.point, refractionstruc.point + refraction);
-			if (refractionstruc.intersected) {
-				refracted.setSize(0.005, (refractionstruc.point - intersectionp2).norm());
-				//std::cout << refraction << std::endl;
-				refractions.push_back(refracted);
-				previousIntersect2 = intersectionp2;
-			}
-			else {
-				//std::cout << refraction << std::endl;
-				refracted.setSize(0.005, 10);
-				refractions.push_back(refracted);
-				break;
-			}
-		}
-	}
+	//		refractionstruc = intersection(refractionstruc.point, refractionstruc.point + refraction);
+	//		if (refractionstruc.intersected) {
+	//			refracted.setSize(0.005, (refractionstruc.point - intersectionp2).norm());
+	//			//std::cout << refraction << std::endl;
+	//			refractions.push_back(refracted);
+	//			previousIntersect2 = intersectionp2;
+	//		}
+	//		else {
+	//			//std::cout << refraction << std::endl;
+	//			refracted.setSize(0.005, 10);
+	//			refractions.push_back(refracted);
+	//			break;
+	//		}
+	//	}
+	//}
 
 	// place the camera representation (frustum) on current camera location, 
 	camerarep.resetModelMatrix();
@@ -447,6 +451,13 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 
 			//cout << "hit -> BOX: " << i << endl;
 
+			Tucano::Shapes::Box repBox;
+			Eigen::Vector3f boxorigin = Eigen::Vector3f((myCoords[0] + myCoords[3]) / 2, (myCoords[1] + myCoords[4]) / 2, (myCoords[2] + myCoords[5]) / 2);
+			repBox = Tucano::Shapes::Box(myCoords[0] - myCoords[3], myCoords[1] - myCoords[4], myCoords[2] - myCoords[5]);
+
+			repBox.modelMatrix()->translate(boxorigin);
+			repBox.setColor({ static_cast <float> (rand()) / static_cast <float> (RAND_MAX), static_cast <float> (rand()) / static_cast <float> (RAND_MAX), static_cast <float> (rand()) / static_cast <float> (RAND_MAX), 1.0f });
+			allBoxes.push_back(repBox);
 			Eigen::Vector3f intersectionv;
 			std::vector<float> ts;
 			std::vector<Eigen::Vector3f> directions;
