@@ -19,7 +19,7 @@
 const int MAX_REFLECT = 0;
 const int SHADOW_SMOOTHNESS = 5;
 const bool SOFT_SHADOWS = false;
-const int AMOUNT_FACES = 3;
+const int AMOUNT_FACES = 100;
 
 class Flyscene {
 
@@ -141,6 +141,9 @@ private:
 
   /// A very thin cylinder to draw a debug ray
   Tucano::Shapes::Cylinder ray = Tucano::Shapes::Cylinder(0.1, 1.0, 16, 64);
+
+  /// A very thin cylinder to draw a debug ray
+  vector<Tucano::Shapes::Cylinder> boxRays;
 
   ///vector containing consecutive reflections
   std::vector<Tucano::Shapes::Cylinder> reflections;
