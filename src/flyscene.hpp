@@ -15,12 +15,13 @@
 #include <tucano/utils/imageIO.hpp>
 #include <tucano/utils/mtlIO.hpp>
 #include <tucano/utils/objimporter.hpp>
+#include <tucano/shapes/box.hpp>
 
 const int MAX_REFLECT = 2;
 const int SHADOW_SMOOTHNESS = 5;
 const bool SOFT_SHADOWS = false;
 const float REFLECT_BIAS = 0.01;
-const int AMOUNT_FACES = 3;
+const int AMOUNT_FACES = 1000;
 
 
 class Flyscene {
