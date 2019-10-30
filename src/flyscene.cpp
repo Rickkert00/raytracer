@@ -29,7 +29,7 @@ void Flyscene::initialize(int width, int height) {
 
 	// load the OBJ file and materials
 	Tucano::MeshImporter::loadObjFile(mesh, materials,
-		"resources/models/bunny.obj");
+		"resources/models/PlaneCube.obj");
 
 	// normalize the model (scale to unit cube and center at origin)
 	mesh.normalizeModelMatrix();
@@ -129,9 +129,9 @@ void Flyscene::paintGL(void) {
 		scene_light.viewMatrix()->translate(-lights.back());
 	}
 	
-	for (int i = 0; i < allBoxes.size(); ++i) {
+	/*for (int i = 0; i < allBoxes.size(); ++i) {
 		allBoxes[i].render(flycamera, scene_light);
-	}
+	}*/
 
 	//for (int i = 0; i < 100; i++)
 		//cout << mesh.getVertexColor(0);
@@ -371,7 +371,6 @@ Eigen::Vector3f  Flyscene::traceRay(Eigen::Vector3f& origin,
 		//Multiply the rgb value of the pixel by the shadow ratio
 		float shadowratio = shadowRatio(intersectionstruc.point, intersectionstruc.face);
 		return shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face, shadowratio);
-
 	}
 	//if miss then return background color
 	return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
@@ -459,13 +458,13 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 
 			//cout << "hit -> BOX: " << i << endl;
 
-			Tucano::Shapes::Box repBox;
+			/*Tucano::Shapes::Box repBox;
 			Eigen::Vector3f boxorigin = Eigen::Vector3f((myCoords[0] + myCoords[3]) / 2, (myCoords[1] + myCoords[4]) / 2, (myCoords[2] + myCoords[5]) / 2);
 			repBox = Tucano::Shapes::Box(myCoords[0] - myCoords[3], myCoords[1] - myCoords[4], myCoords[2] - myCoords[5]);
 
 			repBox.modelMatrix()->translate(boxorigin);
 			repBox.setColor({ static_cast <float> (rand()) / static_cast <float> (RAND_MAX), static_cast <float> (rand()) / static_cast <float> (RAND_MAX), static_cast <float> (rand()) / static_cast <float> (RAND_MAX), 1.0f });
-			allBoxes.push_back(repBox);
+			allBoxes.push_back(repBox);*/
 			Eigen::Vector3f intersectionv;
 			std::vector<float> ts;
 			std::vector<Eigen::Vector3f> directions;
@@ -588,7 +587,7 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 float Flyscene::clamp(float x, float low, float high) {
 	return x < low ? low : x > high ? high : x;
 }
-
+//credits to https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
 bool Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vectors, float& alpha, float& beta) {
 	Eigen::Vector3f v0 = vectors[1] - vectors[0];
 	Eigen::Vector3f v1 = vectors[2] - vectors[0];
@@ -624,9 +623,9 @@ Eigen::Vector3f Flyscene::shade(int level, int maxlevel, Eigen::Vector3f interse
 	if (intersection == Eigen::Vector3f()) {
 		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 	}
-	if (level < maxlevel) {
+	/*if (level < maxlevel) {
 		return shadowratio * directColor(intersection, ray, face) + reflectColor(level, intersection, ray, face) + refractColor(level,intersection, ray, face);
-	}
+	}*/
 	return shadowratio * directColor(intersection, ray, face);
 }
 
@@ -651,13 +650,19 @@ Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tu
 		shininess = 10;
 	}
 	Eigen::Vector3f lightIntensity = Eigen::Vector3f(1.0, 1.0, 1.0);
+	
 	Eigen::Vector3f ambient = lightIntensity.cwiseProduct(ka);
 	Eigen::Vector3f normal = face.normal.normalized();
 	Eigen::Vector3f diffuse = Eigen::Vector3f(0, 0, 0);
 	Eigen::Vector3f specular = Eigen::Vector3f(0, 0, 0);
 	//calc for multiple lights 
 	for (int k = 0; k < lights.size(); k++) {
+		
 		//diffuse
+		if (useSpherical) {
+			float dist = (lights[k] - p).norm();
+			lightIntensity = lightIntensity / (4 * M_PI * std::pow(dist, 2));
+		}
 		Eigen::Vector3f lightDir = (lights[k] - p).normalized();
 		float diffuseDot = lightDir.dot(normal);
 		float diffuseBounded = (diffuseDot > 0.0) ? diffuseDot : 0.0;
@@ -1018,9 +1023,19 @@ float Flyscene::shadowRatio(Eigen::Vector3f intersectionP, Tucano::Face face) {
 		}
 		else {//Use hard shadows
 			inters_point rayToLight = intersection(intersectionP + face.normal * shadowBias, lights[i]);
-			if (!rayToLight.intersected)
-			{
-				raysReachLight++;
+			if (useSpherical) {
+				float distance = (intersectionP - lights[i]).norm();
+				float distancerayToLight = (rayToLight.point - intersectionP).norm();
+				if (!rayToLight.intersected || distancerayToLight > distance)
+				{
+					raysReachLight++;
+				}
+			}
+			else {
+				if (!rayToLight.intersected)
+				{
+					raysReachLight++;
+				}
 			}
 		}
 	}
