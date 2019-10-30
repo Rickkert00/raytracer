@@ -49,9 +49,39 @@ void Flyscene::initialize(int width, int height) {
 	cout << "NUMBER OF BOXES: "<< bboxes.size()<<endl;
 	for (int i = 0; i < bboxes.size(); i++) {
 		std::vector<Tucano::Face> box = bboxes[i];
+		cout << "BOX\n";
+		vector<float> myCoords = makePlanes(box);
+		cout << "COORDS\n" << myCoords[0] << " " << myCoords[1] << " " << myCoords[2] << " " << myCoords[3] << " " << myCoords[4] << " " << myCoords[5] << endl;
+
+		float xdiff = myCoords[0] - myCoords[3];
+		xdiff = xdiff < 0 ? -xdiff : xdiff;
+		float ydiff = myCoords[1] - myCoords[4];
+		ydiff = ydiff < 0 ? -ydiff : ydiff;
+		float zdiff = myCoords[2] - myCoords[5];
+		zdiff = zdiff < 0 ? -zdiff : zdiff;
+
+		cout << "DIFF\n" << xdiff << " " << ydiff << " " << zdiff << endl;
+
+		for (int j = 0; j < box.size(); j++) {
+			Tucano::Face face = box[j];
+
+
+			Eigen::Vector4f homogeneous0 = shapeModelMatrix * mesh.getVertex(face.vertex_ids[0]);
+			Eigen::Vector4f v0 = Eigen::Vector4f(homogeneous0.x() / homogeneous0.w(), homogeneous0.y() / homogeneous0.w(), homogeneous0.z() / homogeneous0.w(), 1.0);
+			Eigen::Vector4f homogeneous1 = shapeModelMatrix * mesh.getVertex(face.vertex_ids[1]);
+			Eigen::Vector4f v1 = Eigen::Vector4f(homogeneous1.x() / homogeneous1.w(), homogeneous1.y() / homogeneous1.w(), homogeneous1.z() / homogeneous1.w(), 1.0);
+			Eigen::Vector4f homogeneous2 = shapeModelMatrix * mesh.getVertex(face.vertex_ids[2]);
+			Eigen::Vector4f v2 = Eigen::Vector4f(homogeneous2.x() / homogeneous2.w(), homogeneous2.y() / homogeneous2.w(), homogeneous2.z() / homogeneous2.w(), 1.0);
+
+			cout << "FACE\n";
+			cout << v0.x() << " " << v0.y() << " " << v0.z() << endl;
+			cout << v1.x() << " " << v1.y() << " " << v1.z() << endl;
+			cout << v2.x() << " " << v2.y() << " " << v2.z() << endl;
+		}
 		sum += box.size();
 		cout << box.size() << endl;
 	}
+
 	cout << sum << " " << numberOfFaces;
 	// scale the camera representation (frustum) for the ray debug
 	camerarep.shapeMatrix()->scale(0.2);
@@ -60,20 +90,10 @@ void Flyscene::initialize(int width, int height) {
 	ray.setSize(0.005, 10.0);
 
 	// craete a first debug ray pointing at the center of the screen
-	//createDebugRay(Eigen::Vector2f(width / 2.0, height / 2.0));
+	createDebugRay(Eigen::Vector2f(width / 2.0, height / 2.0));
 
 	glEnable(GL_DEPTH_TEST);
 
-	// for (int i = 0; i<mesh.getNumberOfFaces(); ++i){
-	//   Tucano::Face face = mesh.getFace(i);    
-	//   for (int j =0; j<face.vertex_ids.size(); ++j){
-	//     std::cout<<"vid "<<j<<" "<<face.vertex_ids[j]<<std::endl;
-	//     std::cout<<"vertex "<<mesh.getVertex(face.vertex_ids[j]).transpose()<<std::endl;
-	//     std::cout<<"normal "<<mesh.getNormal(face.vertex_ids[j]).transpose()<<std::endl;
-	//   }
-	//   std::cout<<"mat id "<<face.material_id<<std::endl<<std::endl;
-	//   std::cout<<"face   normal "<<face.normal.transpose() << std::endl << std::endl;
-	// }
 }
 
 void Flyscene::paintGL(void) {
@@ -93,9 +113,12 @@ void Flyscene::paintGL(void) {
 	// render the scene using OpenGL and one light source
 	phong.render(mesh, flycamera, scene_light);
 
+
 	// render the ray and camera representation for ray debug
 	ray.render(flycamera, scene_light);
 	camerarep.render(flycamera, scene_light);
+
+	
 
 	//render reflections
 	for (int i = 0; i < reflections.size(); i++) {
@@ -157,7 +180,7 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 	}
 
 	//insert reflection rays
-	std::cout << shadowRatio(intersectionstruc.point, intersectionstruc.face) << std::endl;
+	//std::cout << shadowRatio(intersectionstruc.point, intersectionstruc.face) << std::endl;
 
 	// place the camera representation (frustum) on current camera location, 
 	camerarep.resetModelMatrix();
@@ -279,7 +302,7 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 
 		//cout << "AICI " << myCoords[0] << " " << myCoords[1] << " " << myCoords[2] << " " << myCoords[3] << " " << myCoords[4] << " " << myCoords[5] << endl;
 
-		Eigen::Vector3f d = (dest - origin).normalized();
+		Eigen::Vector3f d = (dest - origin);
 		float txmin = (myCoords[0] - origin.x()) / d.x();
 		float tymin = (myCoords[1] - origin.y()) / d.y();
 		float tzmin = (myCoords[2] - origin.z()) / d.z();
@@ -311,10 +334,12 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 			tout = touty;
 		else if (toutz <= toutx && toutz <= touty)
 			tout = toutz;
-
+		//cout << "LOL" << endl;
 		/// if the ray hits our box
 		if (!(tin > tout || tout < 0)) {
 			//cout << "hit" << endl;
+			
+
 			Eigen::Vector3f intersectionv;
 			std::vector<float> ts;
 			std::vector<Eigen::Vector3f> directions;
@@ -322,6 +347,7 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 			std::vector<Tucano::Face> faces;
 			for (int i = 0; i < box.size(); ++i) {
 				Tucano::Face face = box[i];
+				
 				/*std::cout << i << std::endl;*/
 				float alpha;
 				float beta;
@@ -561,7 +587,9 @@ bool Flyscene::barycentric(Eigen::Vector3f p, std::vector<Eigen::Vector3f> vecto
 		for (int x = 0; x < box.size(); x++) {
 			Tucano::Face face = box[x];
 			for (int z = 0; z < 3; z++) {
-				vertices.push_back(shapeModelMatrix * mesh.getVertex(face.vertex_ids[z]));
+				Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[z]);
+				Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
+				vertices.push_back(real);
 			}
 		}
 
@@ -601,7 +629,6 @@ std::vector<std::vector<Tucano::Face>> Flyscene::subdivide() {
 	Eigen::Vector4f avg = Eigen::Vector4f(0 ,0 ,0 ,0);
 	Eigen::Vector4f sum = Eigen::Vector4f(0, 0, 0, 0);
 	Tucano::Face face;
-	int capacity = 100;
 
 	for (int i = 0; i < totalFaces; ++i) {
 		face = mesh.getFace(i);
@@ -610,6 +637,7 @@ std::vector<std::vector<Tucano::Face>> Flyscene::subdivide() {
 			int id = face.vertex_ids[j];
 			sum += mesh.getVertex(id);
 		}
+		sum /= 3;
 		avg += sum; 
 		sum = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
 	}
