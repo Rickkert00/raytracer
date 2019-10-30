@@ -29,7 +29,7 @@ void Flyscene::initialize(int width, int height) {
 
 	// load the OBJ file and materials
 	Tucano::MeshImporter::loadObjFile(mesh, materials,
-		"resources/models/PlaneCube.obj");
+		"resources/models/scene.obj");
 
 	// normalize the model (scale to unit cube and center at origin)
 	mesh.normalizeModelMatrix();
@@ -624,7 +624,7 @@ Eigen::Vector3f Flyscene::shade(int level, int maxlevel, Eigen::Vector3f interse
 		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 	}
 	if (level < maxlevel) {
-		return shadowratio * directColor(intersection, ray, face) + reflectColor(level, intersection, ray, face) + reflectColor(level, intersection, ray, face);
+		return shadowratio * directColor(intersection, ray, face) + reflectColor(level, intersection, ray, face) + refractColor(level, intersection, ray, face);
 	}
 	return shadowratio * directColor(intersection, ray, face);
 }
