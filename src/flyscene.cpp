@@ -603,7 +603,7 @@ Eigen::Vector3f Flyscene::shade(int level, int maxlevel, Eigen::Vector3f interse
 		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 	}
 	if (level < maxlevel) {
-		return shadowratio * directColor(intersection, ray, face) + reflectColor(level, intersection, ray, face);
+		return shadowratio * directColor(intersection, ray, face) + reflectColor(level, intersection, ray, face) + reflectColor(level, intersection, ray, face);
 	}
 	return shadowratio * directColor(intersection, ray, face);
 }
