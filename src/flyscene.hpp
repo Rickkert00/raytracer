@@ -17,10 +17,11 @@
 #include <tucano/utils/objimporter.hpp>
 
 const int MAX_REFLECT = 2;
-const int SHADOW_SMOOTHNESS = 5;
+const bool useSpherical = true;
+const int SHADOW_SMOOTHNESS = 15;
 const bool SOFT_SHADOWS = false;
 const float REFLECT_BIAS = 0.005;
-const int AMOUNT_FACES = 30;
+const int AMOUNT_FACES = 10;
 
 
 class Flyscene {
