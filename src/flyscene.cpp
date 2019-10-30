@@ -28,7 +28,7 @@ void Flyscene::initialize(int width, int height) {
 
 	// load the OBJ file and materials
 	Tucano::MeshImporter::loadObjFile(mesh, materials,
-		"resources/models/bunny.obj");
+		"resources/models/scene.obj");
 
 	// normalize the model (scale to unit cube and center at origin)
 	mesh.normalizeModelMatrix();
@@ -808,12 +808,12 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 			}
 
 			temp /= 3;
-			if (temp.x() < avg.x()) {
+			if (temp.x() + 0.000001 < avg.x()) {
 				avg1 += temp;
 				cnt1++;
 				bb1.push_back(bb.at(i));
 			}
-			else if (temp.x() > avg.x()){
+			else if (temp.x() - 0.000001 > avg.x()){
 				avg2 += temp;
 				cnt2++;
 				bb2.push_back(bb.at(i));
@@ -851,12 +851,12 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 				temp += real;
 			}
 			temp /= 3;
-			if (temp.y() < avg.y()) {
+			if (temp.y() + 0.000001 < avg.y()) {
 				avg1 += temp;
 				cnt1++;
 				bb1.push_back(bb.at(i));
 			}
-			else if (temp.y() > avg.y()){
+			else if (temp.y() - 0.000001 > avg.y()){
 				avg2 += temp;
 				cnt2++;
 				bb2.push_back(bb.at(i));
@@ -894,12 +894,12 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 				temp += real;
 			}
 			temp /= 3;
-			if (temp.z() < avg.z()) {
+			if (temp.z() + 0.000001 < avg.z()) {
 				avg1 += temp;
 				cnt1++;
 				bb1.push_back(bb.at(i));
 			}
-			else if (temp.z() > avg.z()){
+			else if (temp.z() - 0.000001 > avg.z()){
 				avg2 += temp;
 				cnt2++;
 				bb2.push_back(bb.at(i));
