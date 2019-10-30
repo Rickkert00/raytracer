@@ -44,7 +44,7 @@ void Flyscene::initialize(int width, int height) {
 	lightrep.setSize(0.15);
 
 	// create a first ray-tracing light source at some random position
-	lights.push_back(Eigen::Vector3f(-1.0, 1.0, 1.0));
+	//lights.push_back(Eigen::Vector3f(-1.0, 1.0, 1.0));
 
 	bboxes = subdivide();
 	int sum = 0;
@@ -123,7 +123,10 @@ void Flyscene::paintGL(void) {
 
 	// position the scene light at the last ray-tracing light source
 	scene_light.resetViewMatrix();
-	scene_light.viewMatrix()->translate(-lights.back());
+	if (lights.size() != 0 ) {
+		scene_light.viewMatrix()->translate(-lights.back());
+	}
+	
 
 
 	//for (int i = 0; i < 100; i++)
@@ -193,8 +196,8 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 	//calculate intersection point with scene(closest intersection found)
 	inters_point intersectionstruc = intersection(origin, screen_pos);
 
-	Eigen::Vector3f shadingresult = shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
-	//std::cout << "color: " << shadingresult << std::endl;
+	Eigen::Vector3f shadingresult = shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face, 1);
+	std::cout << "color: " << shadingresult << std::endl;
 
 	//if intersection is the infinite vector, the ray intersects with no triangle
 	ray.setOriginOrientation(flycamera.getCenter(), dir);
@@ -202,10 +205,9 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 		float height = (intersectionstruc.point - flycamera.getCenter()).norm();
 		ray.setSize(0.005, height);
 	}
-
-	/*else {
-		ray.setSize(0.005, height);
-	}*/
+	else {
+		ray.setSize(0.005, 10);
+	}
 
 	//calculate reflection ray and draw it
 	//reset reflections again
@@ -356,7 +358,7 @@ Eigen::Vector3f  Flyscene::traceRay(Eigen::Vector3f& origin,
 	if (intersectionstruc.intersected == true) {
 		//Multiply the rgb value of the pixel by the shadow ratio
 		float shadowratio = shadowRatio(intersectionstruc.point, intersectionstruc.face);
-		return shadowratio * shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face);
+		return shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face, shadowratio);
 
 	}
 	//if miss then return background color
@@ -443,8 +445,8 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		/// if the ray hits our box
 		if (!(tin > tout || tout < 0)) {
 
-			// cout << "hit -> BOX: " << i << endl;
-	
+			//cout << "hit -> BOX: " << i << endl;
+
 			Eigen::Vector3f intersectionv;
 			std::vector<float> ts;
 			std::vector<Eigen::Vector3f> directions;
@@ -596,14 +598,14 @@ Eigen::Vector3f Flyscene::reflect(Eigen::Vector3f incoming, Eigen::Vector3f norm
 	return reflection.normalized();
 }
 
-Eigen::Vector3f Flyscene::shade(int level, int maxlevel, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face) {
+Eigen::Vector3f Flyscene::shade(int level, int maxlevel, Eigen::Vector3f intersection, Eigen::Vector3f ray, Tucano::Face face, float shadowratio) {
 	if (intersection == Eigen::Vector3f()) {
 		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 	}
 	if (level < maxlevel) {
-		return directColor(intersection, ray, face) + reflectColor(level, intersection, ray, face);
+		return shadowratio * directColor(intersection, ray, face) + reflectColor(level, intersection, ray, face);
 	}
-	return directColor(intersection, ray, face);
+	return shadowratio * directColor(intersection, ray, face);
 }
 
 Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tucano::Face face) {
@@ -628,27 +630,27 @@ Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tu
 	}
 	Eigen::Vector3f lightIntensity = Eigen::Vector3f(1.0, 1.0, 1.0);
 	Eigen::Vector3f ambient = lightIntensity.cwiseProduct(ka);
-		Eigen::Vector3f normal = face.normal.normalized();
-		Eigen::Vector3f diffuse = Eigen::Vector3f(0, 0, 0);
-		Eigen::Vector3f specular = Eigen::Vector3f(0, 0, 0);
-		//calc for multiple lights 
-		for (int k = 0; k < lights.size(); k++) {
-			//diffuse
-			Eigen::Vector3f lightDir = (lights[k] - p).normalized();
-			float diffuseDot = lightDir.dot(normal);
-			float diffuseBounded = (diffuseDot > 0.0) ? diffuseDot : 0.0;
-			diffuse += lightIntensity.cwiseProduct(kd) * diffuseBounded;
+	Eigen::Vector3f normal = face.normal.normalized();
+	Eigen::Vector3f diffuse = Eigen::Vector3f(0, 0, 0);
+	Eigen::Vector3f specular = Eigen::Vector3f(0, 0, 0);
+	//calc for multiple lights 
+	for (int k = 0; k < lights.size(); k++) {
+		//diffuse
+		Eigen::Vector3f lightDir = (lights[k] - p).normalized();
+		float diffuseDot = lightDir.dot(normal);
+		float diffuseBounded = (diffuseDot > 0.0) ? diffuseDot : 0.0;
+		diffuse += lightIntensity.cwiseProduct(kd) * diffuseBounded;
 
-			//specular term
-			Eigen::Vector3f reflectV = reflect(lightDir, face.normal.normalized()).normalized();
-			Eigen::Vector3f cameraV = flycamera.getCenter() - p;
-			float specularDot = (reflectV.normalized()).dot(cameraV.normalized());
+		//specular term
+		Eigen::Vector3f reflectV = reflect(lightDir, face.normal.normalized()).normalized();
+		Eigen::Vector3f cameraV = flycamera.getCenter() - p;
+		float specularDot = (reflectV.normalized()).dot(cameraV.normalized());
 
-			float specularBounded = (specularDot > 0.0) ? specularDot : 0.0;
-			specular += lightIntensity.cwiseProduct(ks) * std::pow(specularBounded, shininess);
-		}
-		return ambient + diffuse + specular;
+		float specularBounded = (specularDot > 0.0) ? specularDot : 0.0;
+		specular += lightIntensity.cwiseProduct(ks) * std::pow(specularBounded, shininess);
 	}
+	return ambient + diffuse + specular;
+}
 
 Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP, Eigen::Vector3f ray, Tucano::Face face) {
 	Tucano::Material::Mtl current_material = materials[face.material_id];
@@ -663,84 +665,86 @@ Eigen::Vector3f Flyscene::reflectColor(int level, Eigen::Vector3f intersectionP,
 	}
 	//check if material is reflective, if so then go calculate recursion
 	if (!specular.isZero()) {
-		return specular.cwiseProduct(Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face));
+		float shadowratio = shadowRatio(newIntersection.point, newIntersection.face);
+		return specular.cwiseProduct(Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face, shadowratio));
 	}
 	return Eigen::Vector3f(0, 0, 0);
 }
 
 Eigen::Vector3f Flyscene::refractColor(int level, Eigen::Vector3f intersectionP, Eigen::Vector3f ray, Tucano::Face face) {
-		Tucano::Material::Mtl current_material = materials[face.material_id];
-		Eigen::Vector3f specular = current_material.getSpecular();
+	Tucano::Material::Mtl current_material = materials[face.material_id];
+	Eigen::Vector3f specular = current_material.getSpecular();
 
-		float index = current_material.getOpticalDensity();
-		float transparency = current_material.getDissolveFactor();
+	float index = current_material.getOpticalDensity();
+	float transparency = current_material.getDissolveFactor();
 
-		Eigen::Vector3f refractV = refractionV(ray, face.normal, index);
-		inters_point newIntersection = intersection(intersectionP + refractV * REFLECT_BIAS, refractV + intersectionP);
+	Eigen::Vector3f refractV = refractionV(ray, face.normal, index);
+	inters_point newIntersection = intersection(intersectionP + refractV * REFLECT_BIAS, refractV + intersectionP);
 
-		if (newIntersection.intersected == false && transparency != 1.0)
-		{
-			return  (1 - transparency) * (Eigen::Vector3f(1, 1, 1) - specular).cwiseProduct(Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z()));
-		}
-
-		if (transparency != 1.0)
-		{
-			return(1 - transparency) * (Eigen::Vector3f(1, 1, 1) - specular).cwiseProduct(Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face));
-		}
-		return Eigen::Vector3f(0, 0, 0);
+	if (newIntersection.intersected == false && transparency != 1.0)
+	{
+		return  (1 - transparency) * (Eigen::Vector3f(1, 1, 1) - specular).cwiseProduct(Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z()));
 	}
 
+	if (transparency != 1.0)
+	{
+		float shadowratio = shadowRatio(newIntersection.point, newIntersection.face);
+		return(1 - transparency) * (Eigen::Vector3f(1, 1, 1) - specular).cwiseProduct(Flyscene::shade(++level, MAX_REFLECT, newIntersection.point, newIntersection.point - intersectionP, newIntersection.face, shadowratio));
+	}
+	return Eigen::Vector3f(0, 0, 0);
+}
+
 std::vector<float> Flyscene::makePlanes(std::vector<Tucano::Face> box) {
-			std::vector<Eigen::Vector4f> vertices;
+	std::vector<Eigen::Vector4f> vertices;
 
-		for (int x = 0; x < box.size(); x++) {
-			Tucano::Face face = box[x];
-			for (int z = 0; z < 3; z++) {
+	for (int x = 0; x < box.size(); x++) {
+		Tucano::Face face = box[x];
+		for (int z = 0; z < 3; z++) {
 
-				//vertices.push_back(mesh.getVertex(face.vertex_ids[z]));
+			//vertices.push_back(mesh.getVertex(face.vertex_ids[z]));
 
-				Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[z]);
-				Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
-				vertices.push_back(real);
-			}
-
+			Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[z]);
+			Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
+			vertices.push_back(real);
 		}
 
-			Eigen::Vector4f firstVertex = vertices[0];
-			float xmax = firstVertex.x();
-			float xmin = firstVertex.x();
-			float ymax = firstVertex.y();
-			float ymin = firstVertex.y();
-			float zmax = firstVertex.z();
-			float zmin = firstVertex.z();
-			for (int x = 0; x < vertices.size(); x++) {
-				Eigen::Vector4f currentVertex = vertices[x];
-				if (xmin > currentVertex.x()) xmin = currentVertex.x();
-				if (xmax < currentVertex.x()) xmax = currentVertex.x();
+	}
 
-				if (ymin > currentVertex.y()) ymin = currentVertex.y();
-				if (ymax < currentVertex.y()) ymax = currentVertex.y();
+	Eigen::Vector4f firstVertex = vertices[0];
+	float xmax = firstVertex.x();
+	float xmin = firstVertex.x();
+	float ymax = firstVertex.y();
+	float ymin = firstVertex.y();
+	float zmax = firstVertex.z();
+	float zmin = firstVertex.z();
+	for (int x = 0; x < vertices.size(); x++) {
+		Eigen::Vector4f currentVertex = vertices[x];
+		if (xmin > currentVertex.x()) xmin = currentVertex.x();
+		if (xmax < currentVertex.x()) xmax = currentVertex.x();
 
-				if (zmin > currentVertex.z()) zmin = currentVertex.z();
-				if (zmax < currentVertex.z()) zmax = currentVertex.z();
-			}
+		if (ymin > currentVertex.y()) ymin = currentVertex.y();
+		if (ymax < currentVertex.y()) ymax = currentVertex.y();
 
-			std::vector<float> newVector;
-			newVector.push_back(xmin);
-			newVector.push_back(ymin);
-			newVector.push_back(zmin);
-			newVector.push_back(xmax);
-			newVector.push_back(ymax);
-			newVector.push_back(zmax);
+		if (zmin > currentVertex.z()) zmin = currentVertex.z();
+		if (zmax < currentVertex.z()) zmax = currentVertex.z();
+	}
 
-			return newVector;
-		}
+	std::vector<float> newVector;
+	newVector.push_back(xmin);
+	newVector.push_back(ymin);
+	newVector.push_back(zmin);
+	newVector.push_back(xmax);
+	newVector.push_back(ymax);
+	newVector.push_back(zmax);
+
+	return newVector;
+}
 
 std::vector<std::vector<Tucano::Face>> Flyscene::subdivide() {
 	std::vector<Tucano::Face> primarybb;
 	int totalFaces = mesh.getNumberOfFaces();
-	Eigen::Vector4f avg = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
-	Eigen::Vector4f sum = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+	Eigen::Vector3f avg = Eigen::Vector3f(0.0, 0.0, 0.0);
+	Eigen::Vector3f sum = Eigen::Vector3f(0.0, 0.0, 0.0);
 	Tucano::Face face;
 
 	for (int i = 0; i < totalFaces; ++i) {
@@ -750,15 +754,14 @@ std::vector<std::vector<Tucano::Face>> Flyscene::subdivide() {
 			int id = face.vertex_ids[j];
 
 			Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[j]);
-			Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
-
+			Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
 
 			sum += real;
 
 		}
 		sum /= 3;
 		avg += sum;
-		sum = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+		sum = Eigen::Vector3f(0.0, 0.0, 0.0);
 	}
 	avg /= mesh.getNumberOfFaces();
 	std::vector<float> bounds = makePlanes(primarybb);
@@ -766,7 +769,7 @@ std::vector<std::vector<Tucano::Face>> Flyscene::subdivide() {
 	return split(bounds, primarybb, avg);
 }
 
-std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds, std::vector<Tucano::Face> bb, Eigen::Vector4f avg) {
+std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds, std::vector<Tucano::Face> bb, Eigen::Vector3f avg) {
 	std::vector<Tucano::Face> bb1;
 	std::vector<Tucano::Face> bb2;
 
@@ -785,9 +788,9 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 
 	int cnt1 = 0;
 	int cnt2 = 0;
-	Eigen::Vector4f avg1 = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
-	Eigen::Vector4f avg2 = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
-	Eigen::Vector4f temp = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+	Eigen::Vector3f avg1 = Eigen::Vector3f(0.0, 0.0, 0.0);
+	Eigen::Vector3f avg2 = Eigen::Vector3f(0.0, 0.0, 0.0);
+	Eigen::Vector3f temp = Eigen::Vector3f(0.0, 0.0, 0.0);
 
 	if (xdiff >= ydiff && xdiff >= zdiff) {
 		for (int i = 0; i < bb.size(); ++i) {
@@ -795,13 +798,14 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 			//int vid1 = bb.at(i).vertex_ids[1];
 			//int vid2 = bb.at(i).vertex_ids[2];
 			//temp = mesh.getVertex(vid0) + mesh.getVertex(vid1) + mesh.getVertex(vid2);
-			temp = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+			temp = Eigen::Vector3f(0.0, 0.0, 0.0);
 			Tucano::Face face = bb[i];
 			for (int j = 0; j < 3; ++j) {
 				int id = face.vertex_ids[j];
 
 				Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[j]);
-				Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
+
+				Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
 
 
 				temp += real;
@@ -814,6 +818,7 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 				bb1.push_back(bb.at(i));
 			}
 			else if (temp.x() - 0.000001 > avg.x()){
+
 				avg2 += temp;
 				cnt2++;
 				bb2.push_back(bb.at(i));
@@ -839,13 +844,13 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 			//int vid1 = bb.at(i).vertex_ids[1];
 			//int vid2 = bb.at(i).vertex_ids[2];
 			//temp = mesh.getVertex(vid0) + mesh.getVertex(vid1) + mesh.getVertex(vid2);
-			temp = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+			temp = Eigen::Vector3f(0.0, 0.0, 0.0);
 			Tucano::Face face = bb[i];
 			for (int j = 0; j < 3; ++j) {
 				int id = face.vertex_ids[j];
 
 				Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[j]);
-				Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
+				Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
 
 
 				temp += real;
@@ -882,13 +887,12 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 			//int vid1 = bb.at(i).vertex_ids[1];
 			//int vid2 = bb.at(i).vertex_ids[2];
 			//temp = mesh.getVertex(vid0) + mesh.getVertex(vid1) + mesh.getVertex(vid2);
-			temp = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+			temp = Eigen::Vector3f(0.0, 0.0, 0.0);
 			Tucano::Face face = bb[i];
 			for (int j = 0; j < 3; ++j) {
 				int id = face.vertex_ids[j];
-
 				Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[j]);
-				Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
+				Eigen::Vector3f real = Eigen::Vector3f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w());
 
 
 				temp += real;
@@ -900,6 +904,7 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 				bb1.push_back(bb.at(i));
 			}
 			else if (temp.z() - 0.000001 > avg.z()){
+
 				avg2 += temp;
 				cnt2++;
 				bb2.push_back(bb.at(i));
@@ -925,6 +930,8 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 		avg2 /= cnt2;
 	std::vector<std::vector<Tucano::Face>> result1;
 	std::vector<std::vector<Tucano::Face>> result2;
+	cout << "bb1 " << bb1.size() << endl;
+	cout << "bb2 " << bb2.size() << endl;
 	if (bb1.size() > AMOUNT_FACES) {
 		std::vector<float> bounds1 = makePlanes(bb1);
 		result1 = split(bounds1, bb1, avg1);
@@ -932,6 +939,7 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 	else if (bb1.size() > 0) {
 		result1.push_back(bb1);
 	}
+
 	if (bb2.size() > AMOUNT_FACES) {
 		std::vector<float> bounds2 = makePlanes(bb2);
 		result2 = split(bounds2, bb2, avg2);
@@ -939,10 +947,11 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 	else if (bb2.size() > 0) {
 		result2.push_back(bb2);
 	}
-	
+
 	result1.insert(result1.end(), result2.begin(), result2.end());
 	return result1;
 }
+
 
 float Flyscene::shadowRatio(Eigen::Vector3f intersectionP, Tucano::Face face) {
 
@@ -988,6 +997,6 @@ float Flyscene::shadowRatio(Eigen::Vector3f intersectionP, Tucano::Face face) {
 	{
 		return  (float)(raysReachLight / (float)lights.size());
 	}
-	}
-	
-	
+}
+
+

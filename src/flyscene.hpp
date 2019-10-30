@@ -19,8 +19,8 @@
 const int MAX_REFLECT = 2;
 const int SHADOW_SMOOTHNESS = 5;
 const bool SOFT_SHADOWS = false;
-const float REFLECT_BIAS = 0.01;
-const int AMOUNT_FACES = 100;
+const float REFLECT_BIAS = 0.005;
+const int AMOUNT_FACES = 30;
 
 
 class Flyscene {
@@ -102,7 +102,7 @@ Eigen::Vector3f traceRay(Eigen::Vector3f &origin, Eigen::Vector3f &dest);
   Eigen::Vector3f reflect(Eigen::Vector3f incoming,
 	  Eigen::Vector3f normal);
 
-  Eigen::Vector3f shade(int level, int maxlevel, Eigen::Vector3f p,Eigen::Vector3f ray, Tucano::Face face);
+  Eigen::Vector3f shade(int level, int maxlevel, Eigen::Vector3f p,Eigen::Vector3f ray, Tucano::Face face, float shadowratio);
 
   Eigen::Vector3f directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tucano::Face face);
 
@@ -161,7 +161,7 @@ private:
   
   std::vector<std::vector<Tucano::Face>> subdivide();
   
-  std::vector<std::vector<Tucano::Face>> split(std::vector<float> bounds, std::vector<Tucano::Face> bb, Eigen::Vector4f avg);
+  std::vector<std::vector<Tucano::Face>> split(std::vector<float> bounds, std::vector<Tucano::Face> bb, Eigen::Vector3f avg);
 
   /// MTL materials
   vector<Tucano::Material::Mtl> materials;

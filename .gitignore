@@ -386,3 +386,5 @@ MigrationBackup/
 .ionide/
 src/.vshistory
 enc_temp_folder/6236502429bb2ac5692ae2cb89e31293/flyscene.cpp
+build/CMakeFiles/
+build/
