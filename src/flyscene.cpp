@@ -52,7 +52,7 @@ void Flyscene::initialize(int width, int height) {
 	cout << "NUMBER OF BOXES: "<< bboxes.size()<<endl;
 	for (int i = 0; i < bboxes.size(); i++) {
 		std::vector<Tucano::Face> box = bboxes[i];
-		cout << "BOX\n";
+		/*cout << "BOX\n";
 		vector<float> myCoords = makePlanes(box);
 		cout << "COORDS\n" << myCoords[0] << " " << myCoords[1] << " " << myCoords[2] << " " << myCoords[3] << " " << myCoords[4] << " " << myCoords[5] << endl;
 
@@ -80,7 +80,7 @@ void Flyscene::initialize(int width, int height) {
 			cout << v0.x() << " " << v0.y() << " " << v0.z() << endl;
 			cout << v1.x() << " " << v1.y() << " " << v1.z() << endl;
 			cout << v2.x() << " " << v2.y() << " " << v2.z() << endl;
-		}
+		}*/
 		sum += box.size();
 		cout << box.size() << endl;
 	}
@@ -112,6 +112,10 @@ void Flyscene::paintGL(void) {
 	// position the scene light at the last ray-tracing light source
 	scene_light.resetViewMatrix();
 	scene_light.viewMatrix()->translate(-lights.back());
+
+
+	//for (int i = 0; i < 100; i++)
+		//cout << mesh.getVertexColor(0);
 
 	// render the scene using OpenGL and one light source
 	phong.render(mesh, flycamera, scene_light);
@@ -303,6 +307,16 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 	std::vector<Eigen::Vector3f> directionsb;
 	std::vector<Eigen::Vector3f> normalsb;
 	std::vector<Tucano::Face> facesb;
+	cout << endl;
+	cout << endl;
+	cout << endl;
+	cout << endl;
+	cout << endl;
+	cout << endl;
+	cout << endl;
+	cout << endl;
+	cout << endl;
+	cout << endl;
 	for (int i = 0; i < bboxes.size(); i++) {
 		std::vector<Tucano::Face> box = bboxes[i];
 		std::vector<float> myCoords = makePlanes(box);
@@ -346,6 +360,7 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 		/// if the ray hits our box
 		if (!(tin > tout || tout < 0)) {
 			//cout << "hit" << endl;
+			cout << "hit -> BOX: " << i << endl;
 			
 
 			Eigen::Vector3f intersectionv;
@@ -594,6 +609,9 @@ std::vector<float> Flyscene::makePlanes(std::vector<Tucano::Face> box) {
 		for (int x = 0; x < box.size(); x++) {
 			Tucano::Face face = box[x];
 			for (int z = 0; z < 3; z++) {
+
+				//vertices.push_back(mesh.getVertex(face.vertex_ids[z]));
+
 				Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[z]);
 				Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
 				vertices.push_back(real);
@@ -633,8 +651,8 @@ std::vector<float> Flyscene::makePlanes(std::vector<Tucano::Face> box) {
 std::vector<std::vector<Tucano::Face>> Flyscene::subdivide() {
 	std::vector<Tucano::Face> primarybb;
 	int totalFaces = mesh.getNumberOfFaces();
-	Eigen::Vector4f avg = Eigen::Vector4f(0 ,0 ,0 ,0);
-	Eigen::Vector4f sum = Eigen::Vector4f(0, 0, 0, 0);
+	Eigen::Vector4f avg = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+	Eigen::Vector4f sum = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
 	Tucano::Face face;
 
 	for (int i = 0; i < totalFaces; ++i) {
@@ -642,7 +660,12 @@ std::vector<std::vector<Tucano::Face>> Flyscene::subdivide() {
 		primarybb.push_back(face);
 		for (int j = 0; j < 3; ++j) {
 			int id = face.vertex_ids[j];
-			sum += mesh.getVertex(id);
+
+			Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[j]);
+			Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
+
+
+			sum += real;
 		}
 		sum /= 3;
 		avg += sum; 
@@ -674,70 +697,144 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 
 	int cnt1 = 0;
 	int cnt2 = 0;
-	Eigen::Vector4f avg1 = Eigen::Vector4f(0, 0, 0, 0);
-	Eigen::Vector4f avg2 = Eigen::Vector4f(0, 0, 0, 0);
-	Eigen::Vector4f temp = Eigen::Vector4f(0, 0, 0, 0);
+	Eigen::Vector4f avg1 = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+	Eigen::Vector4f avg2 = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+	Eigen::Vector4f temp = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
 
-	if (xdiff <= ydiff && xdiff <= zdiff) {
+	if (xdiff >= ydiff && xdiff >= zdiff) {
 		for (int i = 0; i < bb.size(); ++i) {
-			int vid0 = bb.at(i).vertex_ids[0];
-			int vid1 = bb.at(i).vertex_ids[1];
-			int vid2 = bb.at(i).vertex_ids[2];
-			temp += mesh.getVertex(vid0) + mesh.getVertex(vid1) + mesh.getVertex(vid2);
+			//int vid0 = bb.at(i).vertex_ids[0];
+			//int vid1 = bb.at(i).vertex_ids[1];
+			//int vid2 = bb.at(i).vertex_ids[2];
+			//temp = mesh.getVertex(vid0) + mesh.getVertex(vid1) + mesh.getVertex(vid2);
+			temp = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+			Tucano::Face face = bb[i];
+			for (int j = 0; j < 3; ++j) {
+				int id = face.vertex_ids[j];
+
+				Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[j]);
+				Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
+
+
+				temp += real;
+			}
+
 			temp /= 3;
 			if (temp.x() < avg.x()) {
 				avg1 += temp;
 				cnt1++;
 				bb1.push_back(bb.at(i));
 			}
-			else {
+			else if (temp.x() > avg.x()){
 				avg2 += temp;
 				cnt2++;
 				bb2.push_back(bb.at(i));
 			}
+			else {
+				if (bb1.size() > bb2.size()) {
+					avg2 += temp;
+					cnt2++;
+					bb2.push_back(bb.at(i));
+				}
+				else {
+					avg1 += temp;
+					cnt1++;
+					bb1.push_back(bb.at(i));
+				}
+			}
+			//temp = Eigen::Vector4f(0, 0, 0, 0);
 		}
 	}
-	else if (ydiff <= xdiff && ydiff <= zdiff) {
+	else if (ydiff >= xdiff && ydiff >= zdiff) {
 		for (int i = 0; i < bb.size(); ++i) {
-			int vid0 = bb.at(i).vertex_ids[0];
-			int vid1 = bb.at(i).vertex_ids[1];
-			int vid2 = bb.at(i).vertex_ids[2];
-			temp += mesh.getVertex(vid0) + mesh.getVertex(vid1) + mesh.getVertex(vid2);
+			//int vid0 = bb.at(i).vertex_ids[0];
+			//int vid1 = bb.at(i).vertex_ids[1];
+			//int vid2 = bb.at(i).vertex_ids[2];
+			//temp = mesh.getVertex(vid0) + mesh.getVertex(vid1) + mesh.getVertex(vid2);
+			temp = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+			Tucano::Face face = bb[i];
+			for (int j = 0; j < 3; ++j) {
+				int id = face.vertex_ids[j];
+
+				Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[j]);
+				Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
+
+
+				temp += real;
+			}
 			temp /= 3;
 			if (temp.y() < avg.y()) {
 				avg1 += temp;
 				cnt1++;
 				bb1.push_back(bb.at(i));
 			}
-			else {
+			else if (temp.y() > avg.y()){
 				avg2 += temp;
 				cnt2++;
 				bb2.push_back(bb.at(i));
 			}
+			else {
+				if (bb1.size() > bb2.size()) {
+					avg2 += temp;
+					cnt2++;
+					bb2.push_back(bb.at(i));
+				}
+				else {
+					avg1 += temp;
+					cnt1++;
+					bb1.push_back(bb.at(i));
+				}
+			}
+			//temp = Eigen::Vector4f(0, 0, 0, 0);
 		}
 	}
 	else {
 		for (int i = 0; i < bb.size(); ++i) {
-			int vid0 = bb.at(i).vertex_ids[0];
-			int vid1 = bb.at(i).vertex_ids[1];
-			int vid2 = bb.at(i).vertex_ids[2];
-			temp += mesh.getVertex(vid0) + mesh.getVertex(vid1) + mesh.getVertex(vid2);
+			//int vid0 = bb.at(i).vertex_ids[0];
+			//int vid1 = bb.at(i).vertex_ids[1];
+			//int vid2 = bb.at(i).vertex_ids[2];
+			//temp = mesh.getVertex(vid0) + mesh.getVertex(vid1) + mesh.getVertex(vid2);
+			temp = Eigen::Vector4f(0.0, 0.0, 0.0, 0.0);
+			Tucano::Face face = bb[i];
+			for (int j = 0; j < 3; ++j) {
+				int id = face.vertex_ids[j];
+
+				Eigen::Vector4f homogeneous = shapeModelMatrix * mesh.getVertex(face.vertex_ids[j]);
+				Eigen::Vector4f real = Eigen::Vector4f(homogeneous.x() / homogeneous.w(), homogeneous.y() / homogeneous.w(), homogeneous.z() / homogeneous.w(), 1.0);
+
+
+				temp += real;
+			}
 			temp /= 3;
 			if (temp.z() < avg.z()) {
 				avg1 += temp;
 				cnt1++;
 				bb1.push_back(bb.at(i));
 			}
-			else {
+			else if (temp.z() > avg.z()){
 				avg2 += temp;
 				cnt2++;
 				bb2.push_back(bb.at(i));
 			}
+			else {
+				if (bb1.size() > bb2.size()) {
+					avg2 += temp;
+					cnt2++;
+					bb2.push_back(bb.at(i));
+				}
+				else {
+					avg1 += temp;
+					cnt1++;
+					bb1.push_back(bb.at(i));
+				}
+			}
+			//temp = Eigen::Vector4f(0, 0, 0, 0);
 		}
 	}
-
-	avg1 /= cnt1;
-	avg2 /= cnt2;
+	if (cnt1)
+		avg1 /= cnt1;
+	if (cnt2)
+		avg2 /= cnt2;
 	std::vector<std::vector<Tucano::Face>> result1;
 	std::vector<std::vector<Tucano::Face>> result2;
 	if (bb1.size() > AMOUNT_FACES) {
