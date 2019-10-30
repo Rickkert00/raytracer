@@ -154,6 +154,7 @@ private:
   Tucano::Mesh mesh;
 
   std::vector<float> makePlanes(std::vector<Tucano::Face> box);
+  
   Eigen::Affine3f shapeModelMatrix;
   
   std::vector<std::vector<Tucano::Face>> subdivide();
@@ -161,7 +162,10 @@ private:
   std::vector<std::vector<Tucano::Face>> split(std::vector<float> bounds, std::vector<Tucano::Face> bb, Eigen::Vector4f avg);
 
   /// MTL materials
-  vector<Tucano::Material::Mtl> materials;
+  std::vector<Tucano::Material::Mtl> materials;
+
+  //Box Representation
+  std::vector<Tucano::Shapes::Box> allBoxes;
 };
 
 #endif // FLYSCENE

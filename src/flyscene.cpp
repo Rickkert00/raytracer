@@ -94,7 +94,7 @@ void Flyscene::paintGL(void) {
 
 	// render the scene using OpenGL and one light source
 	phong.render(mesh, flycamera, scene_light);
-	
+
 	//test.render(flycamera, scene_light);
 	// render the ray and camera representation for ray debug
 	ray.render(flycamera, scene_light);
@@ -108,36 +108,43 @@ void Flyscene::paintGL(void) {
 	for (int i = 0; i < refractions.size(); i++) {
 		refractions[i].render(flycamera, scene_light);
 	}
-	
-	// render ray tracing light sources as yellow spheres
-	for (int i = 0; i < lights.size(); ++i) {
-		lightrep.resetModelMatrix();
-		lightrep.modelMatrix()->translate(lights[i]);
-		lightrep.render(flycamera, scene_light);
+
+	//render bounding boxes
+	for (int i = 0; i < allBoxes.size(); i++) {
+		allBoxes[i].render(flycamera, scene_light);
 	}
 
-	// render coordinate system at lower right corner
-	flycamera.renderAtCorner();
-}
 
-void Flyscene::simulate(GLFWwindow* window) {
-	// Update the camera.
-	// NOTE(mickvangelderen): GLFW 3.2 has a problem on ubuntu where some key
-	// events are repeated: https://github.com/glfw/glfw/issues/747. Sucks.
-	float dx = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 0.5 : 0.0) -
-		(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 0.5 : 0.0);
-	float dy = (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS ||
-		glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS
-		? 0.5
-		: 0.0) -
-		(glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS ||
-			glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS
+	// render ray tracing light sources as yellow spheres
+		for (int i = 0; i < lights.size(); ++i) {
+			lightrep.resetModelMatrix();
+			lightrep.modelMatrix()->translate(lights[i]);
+			lightrep.render(flycamera, scene_light);
+		}
+
+		// render coordinate system at lower right corner
+		flycamera.renderAtCorner();
+	}
+
+	void Flyscene::simulate(GLFWwindow * window) {
+		// Update the camera.
+		// NOTE(mickvangelderen): GLFW 3.2 has a problem on ubuntu where some key
+		// events are repeated: https://github.com/glfw/glfw/issues/747. Sucks.
+		float dx = (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS ? 0.5 : 0.0) -
+			(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ? 0.5 : 0.0);
+		float dy = (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS ||
+			glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS
 			? 0.5
-			: 0.0);
-	float dz = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 0.5 : 0.0) -
-		(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 0.5 : 0.0);
-	flycamera.translate(dx, dy, dz);
-}
+			: 0.0) -
+			(glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS ||
+				glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS
+				? 0.5
+				: 0.0);
+		float dz = (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ? 0.5 : 0.0) -
+			(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS ? 0.5 : 0.0);
+		flycamera.translate(dx, dy, dz);
+	}
+
 
 void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 	ray.resetModelMatrix();
@@ -242,6 +249,9 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 			break;
 		}
 	}
+	
+
+
 	
 
 	// place the camera representation (frustum) on current camera location, 
@@ -395,6 +405,22 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 
 		/// if the ray hits our box
 		if (!(tin > tout || tout < 0)) {
+
+			
+			Tucano::Shapes::Box repBox;
+			
+			float height = txmax - txmin;
+			float width = tymax - tymin;
+			float depth = tzmax - tzmin;
+			Eigen::Vector3f bounds = Eigen::Vector3f(height, width, depth);
+
+			repBox.resetModelMatrix();
+			Eigen::Affine3f boxx = repBox.getModelMatrix();
+			boxx.translate(bounds);
+			repBox.modelMatrix()->scale(bboxes.size());
+			repBox.setColor({ 1.0f, 1.0f, 1.0f, 1.0f });
+			repBox.setModelMatrix(boxx);
+			
 			//cout << "hit" << endl;
 			Eigen::Vector3f intersectionv;
 			std::vector<float> ts;
@@ -490,6 +516,9 @@ Flyscene::inters_point Flyscene::intersection(Eigen::Vector3f origin,
 					directionsb.push_back(direction);
 					facesb.push_back(face);
 				}
+				std::vector<std::vector<Tucano::Face>> intersectBoxes;
+				std::vector<std::vector<Tucano::Face>> bboxes = subdivide();
+				
 			
 		}
 		else {
