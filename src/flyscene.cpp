@@ -29,7 +29,7 @@ void Flyscene::initialize(int width, int height) {
 
 	// load the OBJ file and materials
 	Tucano::MeshImporter::loadObjFile(mesh, materials,
-		"resources/models/scene.obj");
+		"resources/models/tablescene.obj");
 
 	// normalize the model (scale to unit cube and center at origin)
 	mesh.normalizeModelMatrix();
@@ -50,8 +50,8 @@ void Flyscene::initialize(int width, int height) {
 	bboxes = subdivide();
 	int sum = 0;
 	int numberOfFaces = mesh.getNumberOfFaces();
-	
-	cout << "number of boxes: "<< bboxes.size()<<endl;
+
+	cout << "number of boxes: " << bboxes.size() << endl;
 	//for (int i = 0; i < bboxes.size(); i++) {
 	//	std::vector<Tucano::Face> box = bboxes[i];
 	//	cout << "BOX\n";
@@ -86,7 +86,7 @@ void Flyscene::initialize(int width, int height) {
 	//	cout << box.size() << endl;
 	//}
 	//cout << sum << " " << numberOfFaces;
-	
+
 	// scale the camera representation (frustum) for the ray debug
 	camerarep.shapeMatrix()->scale(0.2);
 
@@ -125,10 +125,10 @@ void Flyscene::paintGL(void) {
 
 	// position the scene light at the last ray-tracing light source
 	scene_light.resetViewMatrix();
-	if (lights.size() != 0 ) {
+	if (lights.size() != 0) {
 		scene_light.viewMatrix()->translate(-lights.back());
 	}
-	
+
 	/*for (int i = 0; i < allBoxes.size(); ++i) {
 		allBoxes[i].render(flycamera, scene_light);
 	}*/
@@ -208,8 +208,10 @@ void Flyscene::createDebugRay(const Eigen::Vector2f& mouse_pos) {
 		materials.push_back(fallback);
 		intersectionstruc.face.material_id = 0;
 	}
+	float shadowratio = shadowRatio(intersectionstruc.point, intersectionstruc.face);
+	std::cout << shadowratio << std::endl;
 	Eigen::Vector3f shadingresult = shade(0, MAX_REFLECT, intersectionstruc.point, intersectionstruc.point - origin, intersectionstruc.face, 1);
-	std::cout << "color: " << shadingresult << std::endl;
+	//std::cout << "color: " << shadingresult << std::endl;
 
 	//if intersection is the infinite vector, the ray intersects with no triangle
 	ray.setOriginOrientation(flycamera.getCenter(), dir);
@@ -623,6 +625,7 @@ Eigen::Vector3f Flyscene::shade(int level, int maxlevel, Eigen::Vector3f interse
 	if (intersection == Eigen::Vector3f()) {
 		return Eigen::Vector3f(backgroundColor.x(), backgroundColor.y(), backgroundColor.z());
 	}
+	cout << refractColor(level, intersection, ray, face) << endl;
 	if (level < maxlevel) {
 		return shadowratio * directColor(intersection, ray, face) + reflectColor(level, intersection, ray, face) + refractColor(level, intersection, ray, face);
 	}
@@ -650,14 +653,14 @@ Eigen::Vector3f Flyscene::directColor(Eigen::Vector3f p, Eigen::Vector3f ray, Tu
 		shininess = 10;
 	}
 	Eigen::Vector3f lightIntensity = Eigen::Vector3f(1.0, 1.0, 1.0);
-	
+
 	Eigen::Vector3f ambient = lightIntensity.cwiseProduct(ka);
 	Eigen::Vector3f normal = face.normal.normalized();
 	Eigen::Vector3f diffuse = Eigen::Vector3f(0, 0, 0);
 	Eigen::Vector3f specular = Eigen::Vector3f(0, 0, 0);
 	//calc for multiple lights 
 	for (int k = 0; k < lights.size(); k++) {
-		
+
 		//diffuse
 		if (useSpherical) {
 			float dist = (lights[k] - p).norm();
@@ -860,7 +863,7 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 				cnt1++;
 				bb1.push_back(bb.at(i));
 			}
-			else if (temp.x() - 0.000001 > avg.x()){
+			else if (temp.x() - 0.000001 > avg.x()) {
 
 				avg2 += temp;
 				cnt2++;
@@ -904,7 +907,7 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 				cnt1++;
 				bb1.push_back(bb.at(i));
 			}
-			else if (temp.y() - 0.000001 > avg.y()){
+			else if (temp.y() - 0.000001 > avg.y()) {
 				avg2 += temp;
 				cnt2++;
 				bb2.push_back(bb.at(i));
@@ -946,7 +949,7 @@ std::vector<std::vector<Tucano::Face>> Flyscene::split(std::vector<float> bounds
 				cnt1++;
 				bb1.push_back(bb.at(i));
 			}
-			else if (temp.z() - 0.000001 > avg.z()){
+			else if (temp.z() - 0.000001 > avg.z()) {
 
 				avg2 += temp;
 				cnt2++;
@@ -1023,17 +1026,17 @@ float Flyscene::shadowRatio(Eigen::Vector3f intersectionP, Tucano::Face face) {
 		}
 		else {//Use hard shadows
 			inters_point rayToLight = intersection(intersectionP + face.normal * shadowBias, lights[i]);
-			if (useSpherical) {
-				float distance = (intersectionP - lights[i]).norm();
-				float distancerayToLight = (rayToLight.point - intersectionP).norm();
-				if (!rayToLight.intersected || distancerayToLight > distance)
-				{
-					raysReachLight++;
-				}
+
+			if (!rayToLight.intersected)
+			{
+				raysReachLight++;
+
 			}
-			else {
-				if (!rayToLight.intersected)
-				{
+			else if (useSpherical) {
+				float distance = (intersectionP - lights[i]).norm();
+
+				float distancerayToLight = (rayToLight.point - intersectionP).norm();
+				if (distancerayToLight > distance) {
 					raysReachLight++;
 				}
 			}

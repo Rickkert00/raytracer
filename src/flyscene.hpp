@@ -16,8 +16,8 @@
 #include <tucano/utils/mtlIO.hpp>
 #include <tucano/utils/objimporter.hpp>
 
-const int MAX_REFLECT = 2;
-const bool useSpherical = true;
+const int MAX_REFLECT = 3;
+const bool useSpherical = false;
 const int SHADOW_SMOOTHNESS = 15;
 const bool SOFT_SHADOWS = false;
 const float REFLECT_BIAS = 0.005;
