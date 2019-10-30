@@ -20,7 +20,7 @@ const int MAX_REFLECT = 2;
 const int SHADOW_SMOOTHNESS = 5;
 const bool SOFT_SHADOWS = false;
 const float REFLECT_BIAS = 0.005;
-const int AMOUNT_FACES = 30;
+const int AMOUNT_FACES = 100;
 
 
 class Flyscene {
